@@ -1,0 +1,23 @@
+---
+title: New Post
+author: ''
+date: '2021-05-09'
+slug: new-post
+categories: []
+tags: []
+description: ''
+---
+
+A bunch of nonsense
+
+[Link to project 1](/project/project1/)
+
+[Link to google](https://www.google.com)
+
+```{r}
+print("Hello world!")
+```
+
+```{python}
+print("Hello world!")
+```
