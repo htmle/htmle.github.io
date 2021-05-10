@@ -7,7 +7,7 @@
     <meta name="author" content="Eli Le (he/him or they/them)" />
     
     <link rel="shortcut icon" type="image/x-icon" href="../../../../../img/favicon.ico">
-    <title>New Post</title>
+    <title>Python? In MY RStudio? (It&#39;s More Likely Than You Think)</title>
     <meta name="generator" content="Hugo 0.83.1" />
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" type="text/css" href="../../../../../css/main.css" />
@@ -54,7 +54,7 @@
       <div class="container">
         <div class="blog-post">
           <h3>
-            <strong><a href="../../../../../post/2021/05/09/new-post/">New Post</a></strong>
+            <strong><a href="../../../../../post/2021/05/09/python-in-my-rstudio-it-s-more-likely-than-you-think/">Python? In MY RStudio? (It&#39;s More Likely Than You Think)</a></strong>
           </h3>
         </div>
  
@@ -72,13 +72,42 @@
               
 
 
-<p>A bunch of nonsense</p>
-<p><a href="../../../../../project/project1/">Link to project 1</a></p>
-<p><a href="https://www.google.com">Link to google</a></p>
-<pre class="r"><code>print(&quot;Hello world!&quot;)</code></pre>
-<pre><code>## [1] &quot;Hello world!&quot;</code></pre>
-<pre class="python"><code>print(&quot;Hello world!&quot;)</code></pre>
-<pre><code>## Hello world!</code></pre>
+<center>
+<div class="figure">
+<img src="../../../../../post/2021-05-09-python-in-my-rstudio-it-s-more-likely-than-you-think_files/Snakesonmyplane.jpg" alt="" />
+<p class="caption">(Picture of Samuel L. Jackson in a meme that says “Snakes? On <em>my</em> plane? It’s more likely than you think.” This meme format parodies an old ad for “Net Nanny” website blocking software.)</p>
+</div>
+</center>
+<hr />
+<p>Have you ever thought to yourself, “sure, R is great, but what I <em>really</em> need is a way to make my life more complicated by adding Python into the mix”? Sure you have! Luckily for you, there’s an R package that lets you run Python right in RStudio and even have the two programming languages “talk” to each other. Enter: <code>reticulate</code>!</p>
+<p>First, let’s load up <code>reticulate</code> by creating an R code block and running the <code>library</code> function. We’ll then create an object called <code>species</code> and assign it the common name of the reticulated python, which is the world’s longest snake and also the namesake of this package!</p>
+<pre class="r"><code># R
+
+library(reticulate)
+
+species &lt;- &quot;Reticulated python&quot;</code></pre>
+<p>Next, let’s make a Python code block where we define <code>species</code> as the reticulated python’s scientific name.</p>
+<pre class="python"><code># Python
+
+species = &quot;Malayopython reticulatus&quot;</code></pre>
+<p>Now for the fun (?) part: combining R and Python in a single output! In an R code block, we can use <code>py$</code> to pull up things defined in Python.</p>
+<pre class="r"><code># R
+
+cat(c(species, py$species))</code></pre>
+<pre><code>## Reticulated python Malayopython reticulatus</code></pre>
+<p>Wondering if this works the other way around? It sure does! If we want to access something defined in R but we’re in a Python code block, we can use <code>r.</code> in front of the object’s name.</p>
+<pre class="python"><code># Python
+
+print(species, r.species)</code></pre>
+<pre><code>## Malayopython reticulatus Reticulated python</code></pre>
+<p>There you have it–a super simple demo showing you how to use Python and R together in RStudio. Hope this helped (or at least taught you a cool fact about reticulated pythons)!</p>
+<hr />
+<center>
+<div class="figure">
+<img src="../../../../../post/2021-05-09-python-in-my-rstudio-it-s-more-likely-than-you-think_files/r_vs_python.jpeg" alt="" />
+<p class="caption">(From <span class="citation">@kareem_carr</span> on Twitter: “survival of the fittest,” or R and Python as Godzilla and King Kong being chased away by Microsoft Excel.)</p>
+</div>
+</center>
 
             
         <hr>         <div class="related-posts">

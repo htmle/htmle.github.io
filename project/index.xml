@@ -6,23 +6,23 @@
     <description>Recent content in Projects on Eli Le</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Tue, 01 Dec 2020 00:00:00 +0000</lastBuildDate><atom:link href="/project/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 07 May 2021 00:00:00 +0000</lastBuildDate><atom:link href="/project/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Project 1</title>
-      <link>/project/project1/</link>
-      <pubDate>Tue, 01 Dec 2020 00:00:00 +0000</pubDate>
+      <title>Project 2: Modeling, Testing, and Predicting</title>
+      <link>/project/project2/</link>
+      <pubDate>Fri, 07 May 2021 00:00:00 +0000</pubDate>
       
-      <guid>/project/project1/</guid>
-      <description> Test Project 1  </description>
+      <guid>/project/project2/</guid>
+      <description>Eli Le 0. Introduction The fifth main game in Nintendo’s Animal Crossing series, Animal Crossing: New Horizons is a life simulation video game published on March 20, 2020 for the Nintendo Switch. Partially because it was released in the first few weeks of the COVID-19 pandemic and partially because it’s just super cute, the game became wildly popular in 2020 as people looked for a way to connect with friends and escape everything going on in the real world.</description>
     </item>
     
     <item>
-      <title>Project 2</title>
-      <link>/project/project2/</link>
-      <pubDate>Tue, 01 Dec 2020 00:00:00 +0000</pubDate>
+      <title>Project 1: Exploratory Data Analysis</title>
+      <link>/project/project1/</link>
+      <pubDate>Tue, 06 Apr 2021 00:00:00 +0000</pubDate>
       
-      <guid>/project/project2/</guid>
-      <description> Test Project 2  </description>
+      <guid>/project/project1/</guid>
+      <description>Eli Le 0. Introduction I’ve been a big fan of Taylor Swift’s music since I was in elementary school. Over the years she’s released nine albums across a variety of genres, ranging from country to synth-pop to alternative rock. To get some more insight into the lyrics and audio features associated with Taylor Swift’s discography, I made a Spotify playlist using songs from Taylor Swift’s nine studio albums and used spotifyr to extract data associated with each song.</description>
     </item>
     
   </channel>

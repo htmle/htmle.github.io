@@ -1,8 +1,548 @@
 ---
-title: "Project 1"
-author: "Me"
-date: "2020-12-01"
-output: html_document
+title: 'Project 1: Exploratory Data Analysis'
+author: "SDS348"
+date: "YYYY-MM-DD"
+output:
+  html_document:
+    code_folding: show
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
 ---
 
-## Test Project 1
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+## Eli Le
+
+### 0. Introduction
+
+I've been a big fan of Taylor Swift's music since I was in elementary school. Over the years she's released nine albums across a variety of genres, ranging from country to synth-pop to alternative rock. To get some more insight into the lyrics and audio features associated with Taylor Swift's discography, I made a [Spotify playlist](https://open.spotify.com/playlist/3XYAyjXTiRNOQ3AlJ8acFp?si=gRgewElcRXStkm3UfKv0ag) using songs from Taylor Swift's nine studio albums and used `spotifyr` to extract data associated with each song. Spotify assigns each song some [attributes](https://beta.developer.spotify.com/documentation/web-api/reference/tracks/get-audio-features/#audio-features-object) such as `danceability` (based on "tempo, rhythm stability, beat strength, and overall regularity"), `acousticness` (a confidence measure of whether or not a song is acoustic), and `valence` (which describes the "musical positiveness conveyed by a track"), all of which are numbers between 0.0 and 1.0. Also available are data on `popularity` (a value from 1 to 100 calculated based on "how many plays a track received and how recent those plays are") and `tempo`.
+
+```{R}
+# Prepare to pull data from Spotify and Genius
+devtools::install_github('charlie86/spotifyr')
+library(spotifyr)
+library(tidyverse)
+Sys.setenv(SPOTIFY_CLIENT_ID = 'fcb39961637948d39c8d41385c5da8eb')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = '346e87fd3d494efc9101771ecd540031')
+
+# Pull data from Spotify playlist
+ts_spotify <- get_playlist_audio_features('8fb3j9ab1se1iev472sqofnlo', '3XYAyjXTiRNOQ3AlJ8acFp')
+
+ts_spotify <- ts_spotify %>%
+  arrange(track.name)
+
+# Select variables of interest
+ts_spotify <- ts_spotify %>%
+  select("track_title" = track.name, "track_number" = track.track_number, "album_name" = track.album.name, "album_release_date" = track.album.release_date, "duration_ms" = track.duration_ms, "explicit" = track.explicit, "popularity" = track.popularity, danceability, acousticness, valence, tempo)
+
+glimpse(ts_spotify)
+```
+
+After completing the above steps, I had my first dataset: `ts_spotify`. I wanted to dive into lyric data for my second set, specifically looking at things like `sentiment` and `scrabble_score` for each word. To start, I pulled lyric data from Genius with a package called `genius`. (There really is an R package for everything!)
+
+```{R}
+# Prepare to pull data from Genius
+# install.packages("genius")
+library(genius)
+
+# Specify albums of interest
+ts_albums <- tribble(
+  ~ artist, ~ title,
+ "Taylor Swift", "Taylor Swift",
+ "Taylor Swift", "Fearless (Platinum Edition)",
+ "Taylor Swift", "Speak Now (Deluxe)",
+ "Taylor Swift", "RED (Deluxe Edition)",
+ "Taylor Swift", "1989 (Deluxe)",
+ "Taylor Swift", "reputation",
+ "Taylor Swift", "Lover",
+ "Taylor Swift", "folklore (deluxe version)",
+ "Taylor Swift", "evermore (deluxe version)"
+)
+ts_genius <- ts_albums %>% 
+  add_genius(artist, title, type = "album")
+
+# Remove Genius lyrics for alternate versions, demo recordings, and voice memos
+remove_versions <- c("Teardrops on My Guitar (Pop Version)",
+                     "Forever & Always (Piano Version)",
+                     "Treacherous (Original Demo Recording)",
+                     "Red (Original Demo Recording)",
+                     "State of Grace (Acoustic Version)",
+                     "I Know Places (Voice Memo)",
+                     "I Wish You Would (Voice Memo)",
+                     "Blank Space (Voice Memo)")
+ts_genius <- filter(ts_genius, !track_title %in% remove_versions)
+
+# Prepare to separate lines into individual words for further analysis
+library(tidytext)
+data(stop_words)
+ts_genius <- ts_genius %>%
+  group_by(track_title) %>%
+  mutate(line_number = row_number()) %>%
+  ungroup()
+
+# Fix a specific lyric to separate two words not later removed as part of (ts_)stop_words
+ts_genius$lyric[ts_genius$lyric == "Dancin' in your Levi'sDrunk under a streetlight, I"] <- "Dancin' in your Levi's Drunk under a streetlight, I"
+
+# Separate lines into individual words
+words <- ts_genius %>%
+  unnest_tokens(word, lyric)
+```
+
+This next part is kind of inelegant, sorry--I'm trying to fix some of the quirks in the Genius lyric data, which is all user-sourced and tends to reflect Taylor Swift's habit of dropping the final "g" in a lot of her gerunds. The code is also pretty long and not very interesting, so I've opted to hide it by default (if you want to see it, click the Code button below).
+
+```{R class.source = 'fold-hide'}
+# Fix non-standardized spellings (and remove stop words where applicable)
+words$word[words$word == "time'cause"] <- "time"
+words$word[words$word == "bedpost'cause"] <- "bedpost"
+words$word[words$word == "crowd32"] <- "crowd"
+words$word[words$word == "can'tso"] <- "can't"
+words$word[words$word == "you'cause"] <- "you" # I realize "you" and "'cause" are both stop words, so I could have picked either one here
+words$word[words$word == "ileft"] <- "left"
+words$word[words$word == "insane'cause"] <- "insane"
+words$word[words$word == "ican't"] <- "can't"
+words$word[words$word == "easy'cause"] <- "easy"
+words$word[words$word == "nothin'and"] <- "nothing"
+words$word[words$word == "drinkin'while"] <- "drinking"
+words$word[words$word == "room'cause"] <- "room"
+words$word[words$word == "curfew20"] <- "curfew"
+words$word[words$word == "grace'cause"] <- "grace"
+words$word[words$word == "wine'cause"] <- "wine"
+words$word[words$word == "won'tand"] <- "won't"
+words$word[words$word == "glistenyou're"] <- "glisten"
+
+# Add a final "g" to all of these gerunds
+words$word[words$word == "lookin"] <- "looking"
+words$word[words$word == "standin"] <- "standing"
+words$word[words$word == "lovin"] <- "loving"
+words$word[words$word == "dancin"] <- "dancing"
+words$word[words$word == "lettin"] <- "letting"
+words$word[words$word == "ridin"] <- "riding"
+words$word[words$word == "livin"] <- "living"
+words$word[words$word == "sneakin"] <- "sneaking"
+words$word[words$word == "comin"] <- "coming"
+words$word[words$word == "drivin"] <- "driving"
+words$word[words$word == "dyin"] <- "dying"
+words$word[words$word == "thankin"] <- "thanking"
+words$word[words$word == "hopin"] <- "hoping"
+words$word[words$word == "feelin"] <- "feeling"
+words$word[words$word == "nothin"] <- "nothing"
+words$word[words$word == "laughin"] <- "laughing"
+words$word[words$word == "flyin"] <- "flying"
+words$word[words$word == "waitin"] <- "waiting"
+words$word[words$word == "thinkin"] <- "thinking"
+words$word[words$word == "beggin"] <- "begging"
+words$word[words$word == "wonderin"] <- "wondering"
+words$word[words$word == "pickin"] <- "picking"
+words$word[words$word == "guessin"] <- "guessing"
+words$word[words$word == "cruisin"] <- "cruising"
+words$word[words$word == "movin"] <- "moving"
+words$word[words$word == "groovin"] <- "grooving"
+words$word[words$word == "whippin"] <- "whipping"
+words$word[words$word == "breakin"] <- "breaking"
+words$word[words$word == "toyin"] <- "toying"
+words$word[words$word == "shakin"] <- "shaking"
+words$word[words$word == "pacin"] <- "pacing"
+words$word[words$word == "touchin"] <- "touching"
+words$word[words$word == "skippin"] <- "skipping"
+words$word[words$word == "runnin"] <- "running"
+words$word[words$word == "screamin"] <- "screaming"
+words$word[words$word == "bein"] <- "being"
+words$word[words$word == "callin"] <- "calling"
+words$word[words$word == "tryin"] <- "trying"
+words$word[words$word == "makin"] <- "making"
+words$word[words$word == "stressin"] <- "stressing"
+words$word[words$word == "obsessin"] <- "obsessing"
+words$word[words$word == "holdin"] <- "holding"
+words$word[words$word == "seein"] <- "seeing"
+words$word[words$word == "starin"] <- "staring"
+words$word[words$word == "changin"] <- "changing"
+words$word[words$word == "bleedin"] <- "bleeding"
+words$word[words$word == "chasin"] <- "chasing"
+words$word[words$word == "stayin"] <- "staying"
+words$word[words$word == "fakin"] <- "faking"
+words$word[words$word == "dividin"] <- "dividing"
+words$word[words$word == "keepin"] <- "keeping"
+```
+
+With those words taken care of, I moved on to calculating `sentiment` and `scrabble_score` for each word using some handy features in `tidytext` and `ScrabbleScore`.
+
+```{R}
+# Remove stop words (extremely common words such as “the”, “of”, and “I”)
+tidy_words <- words %>%
+  anti_join(stop_words)
+
+# Filter out some more stop words specific to Taylor Swift's lyrics
+ts_stop_words <- c("ooh", "yeah", "ah", "gonna", "di", "ey", "hey", "whoa", "ha", "la", "da", "uh", "til", "would've", "em", "could've", "22", "aah", "bout", "eeh", "usin", "doin", "ya", "tryna", "2", "ra", "haa", "ho", "huh", "1", "2am", "shoulda", "why'd", "iwish", "20", "mm", "na", "16th", "ahh", "hmm", "one's", "sayin", "till", "tis", "4", "a.m", "ayy", "gettin", "should've", "wanna", "mmmm", "her'd", "i'ma", "outta", "mmm", "whatcha", "say", "woah", "30", "amas", "kinda", "that'll", "how'd", "pj's", "58", "9th", "yay", "18", "45", "17", "'cause", "ta", "gon", "eh", "git", "g5", "4th", "whoah", "haha", "ii", "3", "must've", "3i", "3you", "90s", "l.a", "who'll", "who'd", "there'll", "how'd", "oh", "oh'cause", "st")
+tidy_words <- filter(tidy_words, !word %in% ts_stop_words)
+
+# Remove rows containing NA
+tidy_words <- na.omit(tidy_words)
+
+# Find and count unique, non-title words in each track
+unique_nontitle_words <- tidy_words %>%
+  group_by(track_title) %>%
+  count(word) %>% 
+  filter(n == 1) %>%
+  mutate(unique_nontitle_words_in_track = n()) %>%
+  select(-n)
+
+# For each word, assign sentiment based on the `bing` lexicon (positive or negative)
+# install.packages("textdata")
+song_sentiment <- unique_nontitle_words %>%
+  group_by(track_title) %>%
+  mutate(word_count = 1:n(), index = word_count %/% 500 + 1) %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(track_title, index = index , sentiment) %>%
+  ungroup() %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative) %>%
+  select(-index)
+
+# Calculate Scrabble scores for each word, then an average for the track
+# install.packages("ScrabbleScore")
+scrabble <- unique_nontitle_words %>%
+  group_by(track_title) %>%
+  mutate(scrabble_score = ScrabbleScore::sws(word)) %>%
+  na.omit() %>% # removes words that cause NA because of punctuation
+  mutate(track_average_scrabble_score = mean(scrabble_score))
+```
+
+To get my second dataset, `sentiment_and_scrabble`, I used `left_join` on the sentiment and scrabble sets I prepared above, then renamed some of the variables so they were more easily understandable.
+
+```{R}
+# Join `song_sentiment` and `scrabble`
+sentiment_and_scrabble <- full_join(song_sentiment, scrabble, by = "track_title") %>%
+  rename(track_negative = negative,
+         track_positive = positive,
+         track_sentiment = sentiment,
+         word_scrabble_score = scrabble_score)
+
+glimpse(sentiment_and_scrabble)
+```
+
+Between these datasets, I'm curious to see whether there will be an association between a track's `valence` ("musical positiveness" as defined in `ts_spotify`) and `track_sentiment`. I'm also wondering if `duration_ms` shows any association with `unique_nontitle_words_in_track` or `track_average_scrabble_score`.
+
+<P style="page-break-before: always">
+\newpage
+
+### 1. Tidying
+
+To clean up `sentiment_and_scrabble`, I made each song its own observation using `pivot_wider`.
+
+```{R}
+sentiment_and_scrabble_tidy <- sentiment_and_scrabble %>%
+  subset(select = c(1, 2, 3, 4, 6, 8, 5, 7)) %>% # rearrange columns to make more sense
+  pivot_wider(names_from = "word", values_from = "word_scrabble_score") %>%
+  subset(select = c(1:6)) # keep only columns that apply to tracks, not individual words
+```
+
+Prior to joining the datasets, I had to go in and standardize some `track_title` entries in `sentiment_and_scrabble_tidy` to match those in `ts_spotify` (and vice versa). This wasn't the most exciting task, but I had to do it because of formatting differences between Spotify and Genius. (Again, apologies for how wildly long and inelegant this is!)
+
+``` {R class.source = 'fold-hide'}
+# Edit `track_title`s in `sentiment_and_scrabble`
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "...Ready for It?"] <- "...Ready For It?"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "A Place In This World"] <- "A Place in this World"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "All You Had to Do Was Stay"] <- "All You Had To Do Was Stay"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Back to December"] <- "Back To December"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Cold as You"] <- "Cold As You"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Come Back... Be Here"] <- "Come Back...Be Here"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Dancing with Our Hands Tied"] <- "Dancing With Our Hands Tied"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Death by a Thousand Cuts"] <- "Death By A Thousand Cuts"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Everything Has Changed (Ft. Ed Sheeran)"] <- "Everything Has Changed"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Girl at Home"] <- "Girl At Home"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "How You Get the Girl"] <- "How You Get The Girl"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "I’m Only Me When I’m with You"] <- "I’m Only Me When I’m With You"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "If This Was a Movie"] <- "If This Was A Movie"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "It’s Nice to Have a Friend"] <- "It’s Nice To Have A Friend"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "it’s time to go"] <- "it’s time to go - bonus track"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "King of My Heart"] <- "King Of My Heart"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Out of the Woods"] <- "Out Of The Woods"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Picture to Burn"] <- "Picture To Burn"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "right where you left me"] <- "right where you left me - bonus track"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "State of Grace"] <- "State Of Grace"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Teardrops on My Guitar"] <- "Teardrops On My Guitar - Radio Single Remix"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "the lakes"] <- "the lakes - bonus track"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "The Other Side of the Door"] <- "The Other Side Of The Door"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "The Story of Us"] <- "The Story Of Us"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "This is Why We Can’t Have Nice Things"] <- "This Is Why We Can’t Have Nice Things"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "Welcome to New York"] <- "Welcome To New York"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "You Are in Love"] <- "You Are In Love"
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == "You Belong with Me"] <- "You Belong With Me"
+
+# Edit `track_title`s in `ts_spotify`
+ts_spotify$track_title[ts_spotify$track_title == "‘tis the damn season"] <- "'tis the damn season"
+ts_spotify$track_title[ts_spotify$track_title == "Breathe"] <- "Breathe (Ft. Colbie Caillat)"
+ts_spotify$track_title[ts_spotify$track_title == "coney island (feat. The National)"] <- "coney island (Ft. The National)"
+ts_spotify$track_title[ts_spotify$track_title == "End Game"] <- "End Game (Ft. Ed Sheeran & Future)"
+ts_spotify$track_title[ts_spotify$track_title == "evermore (feat. Bon Iver)"] <- "evermore (Ft. Bon Iver)"
+ts_spotify$track_title[ts_spotify$track_title == "Everything Has Changed"] <- "Everything Has Changed (Ft. Ed Sheeran)"
+ts_spotify$track_title[ts_spotify$track_title == "exile (feat. Bon Iver)"] <- "exile (Ft. Bon Iver)"
+ts_spotify$track_title[ts_spotify$track_title == "ME! (feat. Brendon Urie of Panic! At The Disco)"] <- "ME! (Ft. Brendon Urie)"
+ts_spotify$track_title[ts_spotify$track_title == "no body, no crime (feat. HAIM)"] <- "no body, no crime (Ft. HAIM)"
+ts_spotify$track_title[ts_spotify$track_title == "Soon You’ll Get Better (feat. The Chicks)"] <- "Soon You'll Get Better (Ft. The Chicks)"
+ts_spotify$track_title[ts_spotify$track_title == "The Last Time"] <- "The Last Time (Ft. Gary Lightbody)"
+```
+
+<P style="page-break-before: always">
+\newpage
+
+### 2. Joining/Merging
+
+I used `full_join` to merge `ts_spotify` with `sentiment_and_scrabble_tidy` to get `swift_spotify_sentiment_scrabble`. For my purposes, `full_join` was more appropriate than `left_join` or `inner_join` because it minimized the likelihood that I would lose data due to NAs caused by formatting and other issues between the two datasets (more on that below).
+
+```{R}
+swift_spotify_sentiment_scrabble <- full_join(ts_spotify, sentiment_and_scrabble_tidy, by = "track_title")
+```
+
+I needed to manually fix an error where the data for ~40 songs would not join no matter what I tried (everything on Stack Overflow). Instead of joining to form one track with all the required information, each of these songs would remain its own row with half of the values `NA`. To get around this, I opened up the data in Microsoft Excel (after exporting), then imported it back into RStudio. I also decided to drop `track_number` and `album_release_date` since they were fun to know, but ultimately not relevant to my analysis.
+
+```{R}
+library(readr)
+s4 <- read_csv("s4.csv") %>%
+  select(-track_number, -album_release_date) %>%
+  na.omit %>%
+  arrange(track_title)
+glimpse(s4)
+```
+
+I wasn't able to get complete `sentiment_and_scrabble` data for three of the tracks included in this dataset (`Come In With The Rain`, `gold rush`, and `Untouchable`)--in each of these cases, I only got data for `scrabble`, not `sentiment`. Since these NA values would interfere with some of the summary statistics calculated in the next step, I decided to remove these tracks from the dataset. This final dataset, `s4`, contains 148 tracks from Taylor Swift's discography and 13 metrics for each track.
+
+<P style="page-break-before: always">
+\newpage
+
+### 3. Wrangling
+
+To start exploring my dataset, I used `filter` and `arrange` to print the top 10 most popular songs, as defined by data from Spotify. I then used `mutate` to create a new variable (`above_average_popularity`) as a function of whether or not a track's `popularity` was greater than average. Following this, I calculated some more general summary statistics, using `group_by` to group tracks by `album_name`. Within `summarize`, I found `mean`, `sd`, `var`, `min`, and `max` for each of my numeric variables. I took a subset of `s4_summary_by_album` to show what format it's in without printing a huge table, using `select` to grab `album_name` and all of the summary statistics that describe `scrabble_score`. Finally, I show a correlation matrix for the numeric variables in `s4`.
+
+```{R}
+# install.packages('kableExtra')
+library(knitr)
+library(kableExtra)
+
+# Display data for the 10 songs with the highest `popularity`
+top_10 <- s4 %>%
+  filter(popularity > 50) %>%
+  arrange(desc(popularity)) %>%
+  head(10)
+top_10
+
+# Create new variable `above_average_popularity` in `s4`
+mean_popularity <- s4 %>%
+  summarize(mean(popularity))
+s4 <- s4 %>%
+  mutate(above_average_popularity = (popularity > mean_popularity$`mean(popularity)`))
+
+# Calculate summary statistics for the data in `s4`, grouped by the categorical variable `album_name`
+s4_summary_by_album <- s4 %>%
+  group_by(album_name) %>%
+  summarize(mean(duration_ms), # duration_ms
+            sd(duration_ms),
+            var(duration_ms),
+            min(duration_ms),
+            max(duration_ms),
+            mean(popularity), # popularity
+            sd(popularity),
+            var(popularity),
+            min(popularity),
+            max(popularity),
+            mean(danceability), # danceability
+            sd(danceability),
+            var(danceability),
+            min(danceability),
+            max(danceability),
+            mean(acousticness), # acousticness
+            sd(acousticness),
+            var(acousticness),
+            min(acousticness),
+            max(acousticness),
+            mean(valence), # valence
+            sd(valence),
+            var(valence),
+            min(valence),
+            max(valence),
+            mean(tempo), # tempo
+            sd(tempo),
+            var(tempo),
+            min(tempo),
+            max(tempo),
+            mean(track_negative), # track_negative
+            sd(track_negative),
+            var(track_negative),
+            min(track_negative),
+            max(track_negative),
+            mean(track_positive), # track_positive
+            sd(track_positive),
+            var(track_positive),
+            min(track_positive),
+            max(track_positive),
+            mean(track_sentiment), # track_sentiment
+            sd(track_sentiment),
+            var(track_sentiment),
+            min(track_sentiment),
+            max(track_sentiment),
+            mean(unique_nontitle_words_in_track), # unique_nontitle_words_in_track
+            sd(unique_nontitle_words_in_track),
+            var(unique_nontitle_words_in_track),
+            min(unique_nontitle_words_in_track),
+            max(unique_nontitle_words_in_track),
+            mean(track_average_scrabble_score),# track_average_scrabble_score
+            sd(track_average_scrabble_score),
+            var(track_average_scrabble_score),
+            min(track_average_scrabble_score),
+            max(track_average_scrabble_score))
+
+# Show `scrabble_score`-related subset of `s4_summary_by_album`
+s4_scrabble_summary <- s4_summary_by_album %>%
+  select("album_name", contains("scrabble_score")) %>%
+  kable() %>%
+  kable_styling(font_size = 8)
+s4_scrabble_summary
+
+# Make correlation matrix
+s4_correlations <- s4 %>%
+  select_if(is.numeric) %>%
+  cor(use = "pair") %>%
+  kable() %>%
+  kable_styling(font_size = 8)
+s4_correlations
+```
+
+I noticed that many of the more popular tracks came from the albums "Lover" (2019) and "reputation," (2017) which was interesting to me because they represent a significant departure from her previous and current work in terms of genre, overall sound, etc. I also found it interesting that "Lover" (the song) has lower `danceability` and higher `acousticness` metrics than the rest of the top 10 most popular tracks, but it's still the second most popular song. Of the two potential associations I mentioned in my introduction, I see more of a potential association between `duration_ms` and `unique_nontitle_words_in_track` than between `valence` and `track_sentiment`. However, `duration_ms` and `valence` may show some association that I had not previously considered.
+
+<P style="page-break-before: always">
+\newpage
+
+### 4. Visualizing
+
+I used the correlations between numeric variables to generate a heatmap. From this, I saw a strong negative correlation between `track_sentiment` and `track_negative`; this was not very surprising to me, since I calculated `track_sentiment` by subtracting `track_negative` from `track_positive`. Similarly, `unique_nontitle_words_in_track` appears to correlate positively with `track_positive` and `track_negative`, both of which were calculated using a list of unique words in a song. I also noticed a potential negative correlation between `valence` and `duration_ms`, suggesting that longer songs may tend to sound less upbeat.
+
+```{R}
+library(ggridges)
+
+tidycor <- s4 %>%
+  select_if(is.numeric) %>%
+  cor(use = "pair") %>%
+  as.data.frame %>%
+  rownames_to_column("var1") %>%
+  pivot_longer(-1, names_to = "var2", values_to="correlation")
+
+tidycor %>% ggplot(aes(var1, var2, fill = correlation)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "red", mid = "white", high = "blue") +
+  geom_text(aes(label=round(correlation,2)),color = "black", size = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_fixed() +
+  labs(title = "Correlations between \n numeric variables")
+```
+
+<P style="page-break-before: always">
+\newpage
+
+I wanted to see how the audio metrics `danceability`, `acousticness`, and `valence` changed over the course of Taylor Swift's musical career, from her self-titled album in 2006 through her newest albums ("folklore" and "evermore," 2020). I was a bit surprised to see that "folklore" and "evermore" score notably higher on the `acousticness` metric than the rest of Swift's albums, even her self-titled album...which was very, very country. By contrast, "Lover" and "reputation", her most mainstream-pop albums, appear to have the lowest `acousticness`. Within these two groups of albums (her 2020 releases and her mainstream-pop albums), Swift's tracks appear to share a lot of similarity in audio characteristics (though "Lover" is apparently more danceable than "reputation"). Notable as well are the similarities between her first three albums, which were either country or very country-skewed "country-pop".
+
+```{R}
+s4$album_name <- factor(s4$album_name, levels = c("Taylor Swift", "Fearless Platinum Edition", "Speak Now (Deluxe Edition)", "Red (Deluxe Edition)", "1989 (Deluxe Edition)", "reputation", "Lover", "folklore (deluxe version)", "evermore (deluxe version)"))
+
+s4 %>% ggplot(aes(y = album_name)) +
+  geom_density_ridges(aes(x = danceability, color = "Danceability"), alpha = 0.3, scale = 0.9) +
+  geom_density_ridges(aes(x = acousticness, color = "Acousticness"), alpha = 0.3, scale = 0.9) +
+  geom_density_ridges(aes(x = valence, color = "Valence"), alpha = 0.3, scale = 0.9) +
+  labs(title = "Audio Characteristics of Each Taylor Swift Album", x = "Audio Metric", y = "Album") +
+  scale_color_manual(name = "", values = c("Acousticness" = "blue", "Danceability" = "black", "Valence" = "red"))
+```
+
+<P style="page-break-before: always">
+\newpage
+
+I saw in the correlation heatmap above that there's some correlation between `valence` and `duration_ms`, so I decided to visualize that along with two other audio metrics. Adding `geom_smooth` layers helped me see how much variation there was, especially in `acousticness` vs. `duration_ms`. A track's `valence` seems to have the greatest negative correlation with its `duration_ms`, while `danceability` has a slight negative correlation and `acousticness` has a weak positive correlation that becomes less clear as `duration_ms` increases past where most of the tracks are.
+
+```{R}
+s4 %>% ggplot(aes(x = duration_ms)) +
+  geom_point(aes(y = acousticness, color = "Acousticness"),
+             stat = "summary", #stat = "summary" defaults to mean
+             shape = 1, alpha = 0.9, size = 1) +
+  geom_point(aes(y = danceability, color = "Danceability"),
+             shape = 2, alpha = 0.9, size = 1) +
+  geom_point(aes(y = valence, color = "Valence"),
+             shape = 5, alpha = 0.9, size = 1) +
+  geom_smooth(aes(y = acousticness, color = "Acousticness"), method = "lm") +
+  geom_smooth(aes(y = danceability, color = "Danceability"), method = "lm") +
+  geom_smooth(aes(y = valence, color = "Valence"), method = "lm") +
+  labs(title = "Track Duration vs. Audio Characteristics", x = "Track Duration (ms)", y = "Audio Metric") +
+  scale_color_manual(name = "", values = c("Acousticness" = "blue", "Danceability" = "black", "Valence" = "red")) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+<P style="page-break-before: always">
+\newpage
+
+### 5. Dimensionality Reduction
+
+To prepare `s4` for PCA, I selected and scaled the numeric variables before running `princomp` and performing the appropriate subsequent actions. I picked the first six components because they accounted for > 80% of the total variation. (Most of these PCs also followed Kaiser's rule, i.e., were > 1.)
+
+```{R}
+# Prepare the data
+s4_nums <- s4 %>% select_if(is.numeric) %>% scale
+rownames(s4_nums) <- s4$track_title
+
+# Perform PCA by running `princomp`, etc.
+s4_pca <- princomp(s4_nums)
+names(s4_pca)
+eigval <- s4_pca$sdev^2
+varprop = round(eigval/sum(eigval), 2)
+summary(s4_pca, loadings=T)
+
+# View eigen values and select PCs 1-6 (> 80% of variance)
+eigval[1:11] 
+s4_scores <- data.frame(track_title = s4$track_title, PC1 = s4_pca$scores[, 1], PC2 = s4_pca$scores[, 2], PC3 = s4_pca$scores[, 3], PC4 = s4_pca$scores[, 4], PC5 = s4_pca$scores[, 5], PC6 = s4_pca$scores[, 6])
+```
+
+I then made a biplot using loadings and scores from PC1 and PC2. From here, I made two more plots that broke down the components of the biplot in a more readable way.
+
+```{R}
+# Make a biplot (loadings and PC scores)
+library(factoextra)
+fviz_pca_biplot(s4_pca, col.ind = "gray") +
+  labs(x = "PC1", y = "PC2")
+
+# Plot PC scores only, colored by album
+s4_rejoined <- s4_scores %>%
+  left_join(s4)
+ggplot(s4_rejoined, aes(PC1, PC2, color = album_name)) +
+  geom_point() +
+  labs(title = "Track Scores Along PC1 and PC2")
+
+# Plot loadings
+s4_pca$loadings[1:4, 1:2] %>%
+  as.data.frame %>%
+  rownames_to_column %>%
+  ggplot() +
+  geom_hline(aes(yintercept=0), lty=2) +
+  geom_vline(aes(xintercept=0), lty=2) + ylab("PC2") + xlab("PC1") +
+  geom_segment(aes(x=0, y=0, xend=Comp.1, yend=Comp.2), arrow=arrow(), col="red") +
+  geom_label(aes(x=Comp.1*.9, y=Comp.2 + .1, label=rowname)) +
+  labs(title = "Loadings for PC1 and PC2")
+```
+
+We can see from these plots that principal components 1 and 2, which (as calculated earlier) account for just over 40% of total variance, do not appear to separate songs by album. This lack of separation reflects the variety of genres and moods included in this dataset, which spans almost 150 songs over Taylor Swift's nine studio albums (released from 2006 to 2020). From the loadings we can see that PC1 and PC2 were largely impacted by the variables `duration_ms`, `danceability`, `acousticness`, and `popularity`. Acute angles between loadings indicate positive correlations, while obtuse angles indicate negative correlations.
+
+Prior to running these analyses, I was not expecting to find any strong clusters or axes--as I mentioned in the last paragraph, Taylor Swift's songs vary greatly both in audio characteristics and in lyrics. I was mostly curious about the different factors that might make some songs more similar to others, which I've just begun to explore using the methods above.
+
+*Note: Some of the methods carried out as part of this project build off of things done in ["tayloR,"](https://medium.com/@simranvatsa5/taylor-f656e2a09cc3) a super cool analysis posted online by Simran Vatsa in 2018. I found out about this last week from the Github page for the `spotifyr` package, where I went after independently wondering, "hey, I really like Taylor Swift, and she has a ton of songs across several albums and genres...is there some way I can use her music in my SDS 348 project?" I do not own any of the audio or lyric data used in this analysis.*
+
+---
+```{R, echo=F}
+sessionInfo()
+Sys.time()
+Sys.info()
+```
+

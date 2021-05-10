@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="author" content="Eli Le" />
+    <meta name="author" content="Eli Le (he/him or they/them)" />
     
     <link rel="shortcut icon" type="image/x-icon" href="../../img/favicon.ico">
-    <title>Project 2</title>
+    <title>Project 2: Modeling, Testing, and Predicting</title>
     <meta name="generator" content="Hugo 0.83.1" />
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" type="text/css" href="../../css/main.css" />
@@ -54,13 +54,13 @@
       <div class="container">
         <div class="blog-post">
           <h3>
-            <strong><a href="../../project/project2/">Project 2</a></strong>
+            <strong><a href="../../project/project2/">Project 2: Modeling, Testing, and Predicting</a></strong>
           </h3>
         </div>
  
 <div class="blog-title">
           <h4>
-         December 1, 2020 
+         May 7, 2021 
             &nbsp;&nbsp;
             
           </h4>
@@ -70,10 +70,1542 @@
           <div class="panel-body">
             <div class="blogpost">
               
+<script src="../../rmarkdown-libs/kePrint/kePrint.js"></script>
+<link href="../../rmarkdown-libs/lightable/lightable.css" rel="stylesheet" />
 
 
-<div id="test-project-2" class="section level2">
-<h2>Test Project 2</h2>
+<div id="eli-le" class="section level2">
+<h2>Eli Le</h2>
+<div id="introduction" class="section level3">
+<h3>0. Introduction</h3>
+<p>The fifth main game in Nintendo’s <em>Animal Crossing</em> series, <em>Animal Crossing: New Horizons</em> is a life simulation video game published on March 20, 2020 for the Nintendo Switch. Partially because it was released in the first few weeks of the COVID-19 pandemic and partially because it’s just super cute, the game became wildly popular in 2020 as people looked for a way to connect with friends and escape everything going on in the real world. As in previous <em>Animal Crossing</em> games, the player character in <em>New Horizons</em> “is a human who lives in a village inhabited by various anthropomorphic animals, carrying out [different] activities such as fishing, bug catching, and fossil hunting” <a href="https://en.wikipedia.org/wiki/Animal_Crossing">(Wikipedia).</a> Each villager has a <code>personality</code> type (linked to <code>gender</code>), a favorite <code>song</code>, and a <code>catchphrase</code>, along with other descriptors such as <code>species</code> and <code>birthday</code>.</p>
+<p>On May 5, 2020, the R for Data Science <a href="https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-05-05">TidyTuesday event</a> used data compiled from online <em>Animal Crossing: New Horizons</em> databases. The <code>villagers</code> dataset contained information on 391 villagers available in <em>New Horizons</em>, including 8 new villagers such as Audie (a peppy wolf), Raymond (a smug cat who is one of the most popular villagers and has a slight cult following), and Sherb (a lazy goat).</p>
+<p>Because the original <code>villagers</code> dataset did not include <code>song</code> data for these new villagers (or a few older ones), I looked up these villagers on <a href="https://nookipedia.com/wiki/Main_Page">Nookipedia</a> and added their songs manually. I then separated <code>birthday</code> into <code>birth_month</code> and <code>birth_date</code>, created a binary variable for whether or not a villager is <code>male</code>, and added full <code>birthday</code>s back in MM-DD format. Following this, I decided to add counts (<code>_n</code>) of how many villagers have each <code>species</code>, <code>personality</code> type, and <code>song</code>. Finally, I selected my variables of interest and saved them in an order that made more sense to me.</p>
+<pre class="r"><code># Import `villagers` dataset
+villagers &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-05/villagers.csv&#39;)
+
+# Add missing songs
+villagers$song[villagers$id == &quot;audie&quot;] &lt;- &quot;K.K. Island&quot;
+villagers$song[villagers$id == &quot;cyd&quot;] &lt;- &quot;K.K. Metal&quot;
+villagers$song[villagers$id == &quot;dom&quot;] &lt;- &quot;K.K. Country&quot;
+villagers$song[villagers$id == &quot;judy&quot;] &lt;- &quot;K.K. Lullaby&quot;
+villagers$song[villagers$id == &quot;louie&quot;] &lt;- &quot;K.K. Etude&quot;
+villagers$song[villagers$id == &quot;megan&quot;] &lt;- &quot;Forest Life&quot;
+villagers$song[villagers$id == &quot;paolo&quot;] &lt;- &quot;K.K. March&quot;
+villagers$song[villagers$id == &quot;raymond&quot;] &lt;- &quot;K.K. Cruisin&#39;&quot;
+villagers$song[villagers$id == &quot;reneigh&quot;] &lt;- &quot;K.K. Synth&quot;
+villagers$song[villagers$id == &quot;sherb&quot;] &lt;- &quot;Hypno K.K.&quot;
+villagers$song[villagers$id == &quot;spike&quot;] &lt;- &quot;Surfin&#39; K.K.&quot;
+
+# Create columns for `birth_month`, `birth_date`, and `male`
+villagers2 &lt;- villagers %&gt;%
+  separate(col = &quot;birthday&quot;, into = c(&quot;birth_month&quot;, &quot;birth_date&quot;), sep = &quot;-&quot;) %&gt;%
+  mutate(male = ifelse(gender == &quot;male&quot;, 1, 0))
+
+# Add birthday values back in MM-DD format
+villagers2$birthday &lt;- villagers$birthday
+
+# Add counts of how many villagers have a `species`, `personality` type, or `song`
+species &lt;- villagers2 %&gt;%
+  count(species, sort = TRUE) %&gt;%
+  rename(species_n = n)
+personality &lt;- villagers2 %&gt;%
+  count(personality, sort = TRUE) %&gt;%
+  rename(personality_n = n)
+song &lt;- villagers2 %&gt;%
+  count(song, sort = TRUE) %&gt;%
+  rename(song_n = n)
+villagers2 &lt;- villagers2 %&gt;%
+  left_join(species, by = &quot;species&quot;)
+villagers2 &lt;- villagers2 %&gt;%
+  left_join(personality, by = &quot;personality&quot;)
+villagers2 &lt;- villagers2 %&gt;%
+  left_join(song, by = &quot;song&quot;)
+
+# Select columns of interest
+villagers2 &lt;- villagers2 %&gt;%
+  select(id, name, gender, male, species, species_n, birthday, birth_month, birth_date, personality, personality_n, song, song_n, catchphrase = phrase)
+
+# Display first few rows of dataset
+head(villagers2) %&gt;%
+  knitr::kable() %&gt;%
+  kable_classic()</code></pre>
+<table class=" lightable-classic" style='font-family: "Arial Narrow", "Source Sans Pro", sans-serif; margin-left: auto; margin-right: auto;'>
+<thead>
+<tr>
+<th style="text-align:left;">
+id
+</th>
+<th style="text-align:left;">
+name
+</th>
+<th style="text-align:left;">
+gender
+</th>
+<th style="text-align:right;">
+male
+</th>
+<th style="text-align:left;">
+species
+</th>
+<th style="text-align:right;">
+species_n
+</th>
+<th style="text-align:left;">
+birthday
+</th>
+<th style="text-align:left;">
+birth_month
+</th>
+<th style="text-align:left;">
+birth_date
+</th>
+<th style="text-align:left;">
+personality
+</th>
+<th style="text-align:right;">
+personality_n
+</th>
+<th style="text-align:left;">
+song
+</th>
+<th style="text-align:right;">
+song_n
+</th>
+<th style="text-align:left;">
+catchphrase
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+admiral
+</td>
+<td style="text-align:left;">
+Admiral
+</td>
+<td style="text-align:left;">
+male
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+bird
+</td>
+<td style="text-align:right;">
+13
+</td>
+<td style="text-align:left;">
+1-27
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+27
+</td>
+<td style="text-align:left;">
+cranky
+</td>
+<td style="text-align:right;">
+55
+</td>
+<td style="text-align:left;">
+Steep Hill
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:left;">
+aye aye
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+agent-s
+</td>
+<td style="text-align:left;">
+Agent S
+</td>
+<td style="text-align:left;">
+female
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:left;">
+squirrel
+</td>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:left;">
+7-2
+</td>
+<td style="text-align:left;">
+7
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+peppy
+</td>
+<td style="text-align:right;">
+49
+</td>
+<td style="text-align:left;">
+DJ K.K.
+</td>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:left;">
+sidekick
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+agnes
+</td>
+<td style="text-align:left;">
+Agnes
+</td>
+<td style="text-align:left;">
+female
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:left;">
+pig
+</td>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:left;">
+4-21
+</td>
+<td style="text-align:left;">
+4
+</td>
+<td style="text-align:left;">
+21
+</td>
+<td style="text-align:left;">
+uchi
+</td>
+<td style="text-align:right;">
+24
+</td>
+<td style="text-align:left;">
+K.K. House
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:left;">
+snuffle
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+al
+</td>
+<td style="text-align:left;">
+Al
+</td>
+<td style="text-align:left;">
+male
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+gorilla
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:left;">
+10-18
+</td>
+<td style="text-align:left;">
+10
+</td>
+<td style="text-align:left;">
+18
+</td>
+<td style="text-align:left;">
+lazy
+</td>
+<td style="text-align:right;">
+60
+</td>
+<td style="text-align:left;">
+Steep Hill
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:left;">
+Ayyeeee
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alfonso
+</td>
+<td style="text-align:left;">
+Alfonso
+</td>
+<td style="text-align:left;">
+male
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+alligator
+</td>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:left;">
+6-9
+</td>
+<td style="text-align:left;">
+6
+</td>
+<td style="text-align:left;">
+9
+</td>
+<td style="text-align:left;">
+lazy
+</td>
+<td style="text-align:right;">
+60
+</td>
+<td style="text-align:left;">
+Forest Life
+</td>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:left;">
+it’sa me
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alice
+</td>
+<td style="text-align:left;">
+Alice
+</td>
+<td style="text-align:left;">
+female
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:left;">
+koala
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:left;">
+8-19
+</td>
+<td style="text-align:left;">
+8
+</td>
+<td style="text-align:left;">
+19
+</td>
+<td style="text-align:left;">
+normal
+</td>
+<td style="text-align:right;">
+59
+</td>
+<td style="text-align:left;">
+Surfin’ K.K.
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:left;">
+guvnor
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="manova" class="section level3">
+<h3>1. MANOVA</h3>
+<p>I performed a MANOVA to determine whether <code>species_n</code> and <code>song_n</code> show a mean difference across levels of <code>personality</code>. From this, I saw that there appears to be some difference in these variables across <code>personalities</code> (p &lt; 0.05). I then performed univariate ANOVAs and found that both <code>species_n</code> and <code>song_n</code> show mean differences across <code>personality</code> groups when considered separately. Prior to correction, significant differences in <code>species_n</code> across <code>personalities</code> were observed in pairings cranky-lazy, cranky-peppy, jock-peppy, lazy-peppy, normal-peppy, peppy-smug, peppy-snooty, and peppy-uchi. I also observed significant differences in <code>song_n</code> between the pairings cranky-normal, normal-smug, normal-uchi, and peppy-smug. Counting the 1 MANOVA, 2 ANOVAs, and 56 pairwise t-tests, I performed a total of 59 tests; the probability that I made at least one Type I error during this process was around 0.952. A Bonferroni correction adjusted the significance level to 0.000847. Following correction, only the difference in <code>song_n</code> between cranky and peppy <code>personalities</code> remained significant. This means there is a significant difference in the mean number of other villagers who have a favorite song (<code>song_n</code>) between villagers whose personalities are cranky vs. peppy.</p>
+<p>A MANOVA assumes multivariate normality of DVs. To test this, I used the <code>mshapiro_test</code> in the <code>rstatix</code> package and found that most of the <code>personality</code> groups met this assumption, since I was not able to reject the null hypothesis (normality) for those groups. Another MANOVA assumption I looked at was homogeneity of within-group covariance matrices. I did this using Box’s M test and (barely) failed to reject the null hypothesis, which means the data meet this assumption. Lastly, I looked at whether the DVs had a linear relationship, since that is another MANOVA assumption. I made a plot but did not see evidence of a strong relationship in any direction; as a result, I don’t think the data meet this particular assumption.</p>
+<pre class="r"><code>library(rstatix)
+
+man1 &lt;- manova(cbind(species_n, song_n) ~ personality, data = villagers2)
+summary(man1)</code></pre>
+<pre><code>## Df Pillai approx F num Df den Df Pr(&gt;F)
+## personality 7 0.080116 2.2832 14 766 0.004624 **
+## Residuals 383
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1</code></pre>
+<pre class="r"><code># univariate ANOVAs
+summary.aov(man1)</code></pre>
+<pre><code>## Response species_n :
+## Df Sum Sq Mean Sq F value Pr(&gt;F)
+## personality 7 402.7 57.523 2.5375 0.01457 *
+## Residuals 383 8682.2 22.669
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1
+##
+## Response song_n :
+## Df Sum Sq Mean Sq F value Pr(&gt;F)
+## personality 7 57.64 8.2349 2.1809 0.03515 *
+## Residuals 383 1446.19 3.7760
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1</code></pre>
+<pre class="r"><code># post-hoc t-tests
+pairwise.t.test(villagers2$species_n, villagers2$personality, p.adj = &quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  villagers2$species_n and villagers2$personality 
+## 
+##        cranky  jock   lazy   normal peppy  smug   snooty
+## jock   0.2714  -      -      -      -      -      -     
+## lazy   0.0376  0.3369 -      -      -      -      -     
+## normal 0.1972  0.8641 0.4220 -      -      -      -     
+## peppy  8.9e-05 0.0041 0.0444 0.0058 -      -      -     
+## smug   0.4016  0.9021 0.3371 0.7844 0.0080 -      -     
+## snooty 0.1056  0.6029 0.6677 0.7202 0.0176 0.5635 -     
+## uchi   0.2821  0.8271 0.6021 0.9297 0.0396 0.7634 0.8515
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code>pairwise.t.test(villagers2$song_n, villagers2$personality, p.adj = &quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  villagers2$song_n and villagers2$personality 
+## 
+##        cranky jock   lazy   normal peppy  smug   snooty
+## jock   0.2598 -      -      -      -      -      -     
+## lazy   0.2970 0.9136 -      -      -      -      -     
+## normal 0.0060 0.1071 0.0789 -      -      -      -     
+## peppy  0.1362 0.6912 0.6097 0.2458 -      -      -     
+## smug   0.3957 0.0670 0.0772 0.0012 0.0326 -      -     
+## snooty 0.2207 0.9219 0.8347 0.1305 0.7626 0.0553 -     
+## uchi   0.8124 0.2646 0.2955 0.0178 0.1592 0.6330 0.2334
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code>1 - (0.95)^59 # probability of at least 1 Type I error</code></pre>
+<pre><code>## [1] 0.9515055</code></pre>
+<pre class="r"><code>0.05/59 # adjusted significance level</code></pre>
+<pre><code>## [1] 0.0008474576</code></pre>
+<pre class="r"><code># Test multivariate normality for each group (null: normality met)
+group &lt;- villagers2$personality
+DVs &lt;- villagers2 %&gt;% select(species_n, song_n)
+sapply(split(DVs, group), mshapiro_test) %&gt;%
+  knitr::kable() %&gt;%
+  kable_classic() # p &lt; 0.05, fail to reject null, not normal: jock, peppy, uchi (3/8)</code></pre>
+<table class=" lightable-classic" style='font-family: "Arial Narrow", "Source Sans Pro", sans-serif; margin-left: auto; margin-right: auto;'>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+cranky
+</th>
+<th style="text-align:left;">
+jock
+</th>
+<th style="text-align:left;">
+lazy
+</th>
+<th style="text-align:left;">
+normal
+</th>
+<th style="text-align:left;">
+peppy
+</th>
+<th style="text-align:left;">
+smug
+</th>
+<th style="text-align:left;">
+snooty
+</th>
+<th style="text-align:left;">
+uchi
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+statistic
+</td>
+<td style="text-align:left;">
+c(W = 0.973580476696048)
+</td>
+<td style="text-align:left;">
+c(W = 0.88211761073839)
+</td>
+<td style="text-align:left;">
+c(W = 0.946869480834507)
+</td>
+<td style="text-align:left;">
+c(W = 0.983141466039738)
+</td>
+<td style="text-align:left;">
+c(W = 0.929970757629554)
+</td>
+<td style="text-align:left;">
+c(W = 0.944152529540644)
+</td>
+<td style="text-align:left;">
+c(W = 0.952568875489497)
+</td>
+<td style="text-align:left;">
+c(W = 0.872035835742682)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+p.value
+</td>
+<td style="text-align:left;">
+0.265224597590884
+</td>
+<td style="text-align:left;">
+6.28491713281405e-05
+</td>
+<td style="text-align:left;">
+0.0111261161933187
+</td>
+<td style="text-align:left;">
+0.585893705556838
+</td>
+<td style="text-align:left;">
+0.00612144197631711
+</td>
+<td style="text-align:left;">
+0.0820185745579644
+</td>
+<td style="text-align:left;">
+0.0298988209362918
+</td>
+<td style="text-align:left;">
+0.00576807990415056
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># Box&#39;s M test (null: homogeneity of vcov mats assumption met)
+box_m(DVs, group) # fail to reject null...barely (meets assumption)</code></pre>
+<pre><code>## # A tibble: 1 x 4
+## statistic p.value parameter method
+## &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;
+## 1 31.9 0.0595 21 Box&#39;s M-test for Homogeneity of
+Covariance Matrices</code></pre>
+<pre class="r"><code># Linear relationships among DVs?
+ggplot(data = DVs, aes(x = species_n, y = song_n)) +
+  geom_jitter(alpha = 0.3) +
+  labs(title = &quot;Shared Song Count vs. Shared Species Count&quot;, x = &quot;Shared Species Count (species_n)&quot;, y = &quot;Shared Song Count (song_n)&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-2-1.png" width="768" style="display: block; margin: auto;" /></p>
+</div>
+<div id="randomization-test" class="section level3">
+<h3>2. Randomization test</h3>
+<p>I then performed a randomization test to determine whether there was a mean difference in <code>species_n</code> (the number of villagers of the same species as an individual) across <code>gender</code>. My null hypothesis (H0) was that there was no mean difference in <code>species_n</code> between female and male villagers; my alternative hypothesis (HA) was that there <em>was</em> a mean difference in <code>species_n</code> across these two <code>gender</code> groups. Using observed means difference cutoffs of -0.968 and 0.968, I randomized the data and calculated a p-value as appropriate. This gave me a p-value &lt; 0.05 (albeit only slightly), so I rejected the null hypothesis. From this, we can see that there does appear to be a mean difference in <code>species_n</code> between female and male villagers…it’s just not a very big difference.</p>
+<pre class="r"><code># observed difference in means
+villagers2 %&gt;%
+  group_by(gender) %&gt;%
+  summarize(means = mean(species_n)) %&gt;%
+  summarize(`mean_diff` = diff(means))</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##   mean_diff
+##       &lt;dbl&gt;
+## 1    -0.968</code></pre>
+<pre class="r"><code>rand_dist &lt;- vector() # create vector to hold diffs under null hypothesis
+
+for(i in 1:5000) {
+new &lt;- data.frame(species_n = sample(villagers2$species_n), gender = villagers2$gender) # scramble columns
+rand_dist[i] &lt;- mean(new[new$gender == &quot;female&quot;,]$species_n) -
+  mean(new[new$gender == &quot;male&quot;,]$species_n)} # compute mean difference (base R)
+
+# PLOT
+ggplot() +
+  geom_histogram(aes(rand_dist)) +
+  geom_vline(xintercept = c(-0.968, 0.968)) +
+  labs(title = &quot;Histogram of Means Difference Random Distribution&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-3-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># p-value for permutation test
+mean(rand_dist &lt; -0.968 | rand_dist &gt; 0.968) # p &lt; 0.05 (barely), reject null</code></pre>
+<pre><code>## [1] 0.042</code></pre>
+</div>
+<div id="linear-regression-model" class="section level3">
+<h3>3. Linear regression model</h3>
+<p>Next, I built a linear regression model predicting <code>personality_n_c</code> from <code>species_n_c</code> and <code>song_n_c</code> (including interaction). From the coefficient estimates, we can see that the slope for <code>species_n_c</code> on <code>personality_n_c</code> while holding <code>song_n_c</code> constant is -0.0415; the slope for <code>song_n_c</code> on <code>personality_n_c</code> while holding <code>species_n_c</code> constant is 0.6582; and the slope from the interaction of <code>species_n_c</code> and <code>song_n_c</code> is 0.0097. This model accounts for about 0.017 (1.7%) of the variation in outcome. This is due in part to some failed assumptions, including normality and homoskedasticity of residuals. The data also did not meet the assumption of linearity when considered all together, although I did see that the relationships between <code>species_n_c</code> and <code>song_n_c</code> were flat lines within each <code>personality</code> group; in the plots below I used <code>geom_jitter()</code> and adjusted transparency to make the individual points easier to distinguish.</p>
+<p>I then recomputed results using robust standard errors. A Breusch-Pagan test verified that the residuals showed heteroskedasticity. Following correction for violations of homoskedasticity, the SEs (0.0937, 0.2492, and 0.0468) showed a slight decrease from those calculated previously (0.1048, 0.2570, and 0.0576). We can see that <code>song_n_c</code>, which previously had a p-value of 0.0108, now has a p-value of 0.0086; overall, the significance status (yes/no) of the variables did not appear to change after incorporation of robust standard errors.</p>
+<pre class="r"><code># mean-center numeric variables
+villagers2$species_n_c &lt;- villagers2$species_n - mean(villagers2$species_n)
+villagers2$personality_n_c &lt;- villagers2$personality_n - mean(villagers2$personality_n)
+villagers2$song_n_c &lt;- villagers2$song_n - mean(villagers2$song_n)
+
+# predict `personality_n_c` from `species_n_c` and `song_n_c` (w/ interaction)
+fit &lt;- lm(personality_n_c ~ species_n_c * song_n_c, data = villagers2)
+summary(fit)</code></pre>
+<pre><code>##
+## Call:
+## lm(formula = personality_n_c ~ species_n_c * song_n_c,
+data = villagers2)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -31.845 -1.855 3.253 6.190 10.381
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -0.011443 0.504638 -0.023 0.9819
+## species_n_c -0.041545 0.104789 -0.396 0.6920
+## song_n_c 0.658190 0.256984 2.561 0.0108 *
+## species_n_c:song_n_c 0.009734 0.057637 0.169 0.8660
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1
+##
+## Residual standard error: 9.888 on 387 degrees of freedom
+## Multiple R-squared: 0.01675, Adjusted R-squared:
+0.009128
+## F-statistic: 2.198 on 3 and 387 DF, p-value: 0.08787</code></pre>
+<pre class="r"><code># plot
+library(interactions)
+interact_plot(fit, pred = song_n_c, modx = species_n_c)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># proportion of outcome
+summary(fit)$r.sq</code></pre>
+<pre><code>## [1] 0.0167505</code></pre>
+<pre class="r"><code># check assumptions
+# linearity
+villagers2 %&gt;%
+  ggplot(aes(x = species_n_c, y = personality_n_c)) +
+  geom_jitter(aes(color = personality), alpha = 0.3) +
+  labs(title = &quot;Shared Personality Count vs. Shared Species Count (Both Centered)&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>villagers2 %&gt;%
+  ggplot(aes(x = song_n_c, y = personality_n_c)) +
+  geom_jitter(aes(color = personality), alpha = 0.3) +
+  labs(title = &quot;Shared Personality Count vs. Shared Song Count (Both Centered)&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-3.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># normality
+resids1 &lt;- lm(personality_n_c ~ species_n_c, data = villagers2)$residuals
+ggplot() +
+  geom_histogram(aes(resids1), bins = 10)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-4.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>resids2 &lt;- lm(personality_n_c ~ song_n_c, data = villagers2)$residuals
+ggplot() +
+  geom_histogram(aes(resids2), bins = 10)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-5.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># homoskedasticity
+resids &lt;- fit$residuals
+fitvals &lt;- fit$fitted.values
+ggplot() +
+  geom_point(aes(fitvals, resids), alpha = 0.3) +
+  geom_hline(yintercept = 0, color = &#39;red&#39;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-6.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># robust standard errors
+library(sandwich)
+library(lmtest)
+bptest(fit) #reject H0, conclude heteroskedasticity present</code></pre>
+<pre><code>## 
+##  studentized Breusch-Pagan test
+## 
+## data:  fit
+## BP = 4.4531, df = 3, p-value = 0.2165</code></pre>
+<pre class="r"><code>coeftest(fit, vcov = vcovHC(fit)) # corrected</code></pre>
+<pre><code>##
+## t test of coefficients:
+##
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -0.0114432 0.5030634 -0.0227 0.981864
+## species_n_c -0.0415452 0.0937297 -0.4432 0.657837
+## song_n_c 0.6581900 0.2492434 2.6408 0.008607 **
+## species_n_c:song_n_c 0.0097341 0.0468490 0.2078 0.835513
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1</code></pre>
+</div>
+<div id="linear-regression-model-with-bootstrapped-standard-errors" class="section level3">
+<h3>4. Linear regression model with bootstrapped standard errors</h3>
+<p>I then added bootstrapped standard errors to my model by resampling. This produced SE values of 0.1048 (<code>species_n_c</code>), 0.2570 (<code>species_n_c</code>), and 0.0576 (interaction); this model also identified <code>song_n_c</code> as significant (p-value &lt; 0.05). These SE values are very close to the originals and greater than the robust SEs. Overall, the significance status (yes/no) of the variables did not appear to change with the bootstrapped standard errors.</p>
+<pre class="r"><code># predict `personality_n_c` from `species_n_c` and `song_n_c` (w/ interaction)
+fit &lt;- lm(personality_n_c ~ species_n_c * song_n_c, data = villagers2)
+summary(fit)</code></pre>
+<pre><code>##
+## Call:
+## lm(formula = personality_n_c ~ species_n_c * song_n_c,
+data = villagers2)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -31.845 -1.855 3.253 6.190 10.381
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -0.011443 0.504638 -0.023 0.9819
+## species_n_c -0.041545 0.104789 -0.396 0.6920
+## song_n_c 0.658190 0.256984 2.561 0.0108 *
+## species_n_c:song_n_c 0.009734 0.057637 0.169 0.8660
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1
+##
+## Residual standard error: 9.888 on 387 degrees of freedom
+## Multiple R-squared: 0.01675, Adjusted R-squared:
+0.009128
+## F-statistic: 2.198 on 3 and 387 DF, p-value: 0.08787</code></pre>
+<pre class="r"><code># bootstrapping
+# repeat 5000 times
+samp_distn &lt;- replicate(5000, {
+  boot_dat &lt;- sample_frac(villagers2, replace = T) # take bootstrap sample of rows
+  fit &lt;- lm(personality_n_c ~ species_n_c * song_n_c, data = boot_dat) # fit model on bootstrap sample
+  coef(fit) #save coefs
+  })
+## Estimated SEs
+samp_distn %&gt;% t %&gt;% as.data.frame %&gt;% summarize_all(sd)</code></pre>
+<pre><code>##   (Intercept) species_n_c  song_n_c species_n_c:song_n_c
+## 1   0.4999339  0.09226697 0.2475462           0.04827544</code></pre>
+</div>
+<div id="logistic-regression-model" class="section level3">
+<h3>5. Logistic regression model</h3>
+<p>I fitted a logistic regression model to predict the binary variable <code>male</code> (0 if no, 1 if yes) from <code>species_n</code> and <code>birth_month</code>. The coefficient estimates for this model, when used to calculate odds ratios, showed that villagers with <code>birth_months</code> 5-12 (May-December) were more likely to be male than villagers with <code>birth_month</code> 1 (January); on the flip side, villagers with <code>birth_months</code> 2-4 (February-April) were less likely to be male than those born in January. In particular, villagers born in October were 2.006 times as likely to be male than villagers born in January. The chances of a villager being male appeared to decrease slightly as <code>species_n</code> increased, with an exponentiated coefficient of 0.958. This model had an accuracy of 0.586, a sensitivity (TPR) of 0.681, a specificity (TNR) of 0.481, a precision (PPV) of 0.589, and an AUC of 0.612. I created an ROC plot, which also gave an AUC of 0.612; this indicates that the model performs poorly and is only slightly better than a classifier that predicts randomly (AUC = 0.5).</p>
+<pre class="r"><code>library(lmtest)
+
+# predict `male` from `species_n` and `birth_month`
+fit2 &lt;- glm(male ~ species_n + birth_month, data = villagers2, family = &quot;binomial&quot;)
+coeftest(fit2)</code></pre>
+<pre><code>##
+## z test of coefficients:
+##
+## Estimate Std. Error z value Pr(&gt;|z|)
+## (Intercept) 0.332459 0.465847 0.7137 0.47543
+## species_n -0.042646 0.021874 -1.9496 0.05123 .
+## birth_month10 0.696225 0.494672 1.4074 0.15929
+## birth_month11 0.470800 0.515298 0.9136 0.36090
+## birth_month12 0.703281 0.504014 1.3954 0.16291
+## birth_month2 -0.077043 0.521468 -0.1477 0.88255
+## birth_month3 -0.071716 0.503819 -0.1423 0.88681
+## birth_month4 -0.304471 0.526270 -0.5785 0.56290
+## birth_month5 0.223529 0.510684 0.4377 0.66160
+## birth_month6 0.471010 0.502061 0.9382 0.34817
+## birth_month7 0.676726 0.498219 1.3583 0.17437
+## birth_month8 0.676391 0.496736 1.3617 0.17330
+## birth_month9 0.115306 0.505125 0.2283 0.81943
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1</code></pre>
+<pre class="r"><code># exponentiate coefficients for interpretation
+exp(coef(fit2)) %&gt;%
+  knitr::kable() %&gt;%
+  kable_classic()</code></pre>
+<table class=" lightable-classic" style='font-family: "Arial Narrow", "Source Sans Pro", sans-serif; margin-left: auto; margin-right: auto;'>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+x
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+(Intercept)
+</td>
+<td style="text-align:right;">
+1.3943929
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+species_n
+</td>
+<td style="text-align:right;">
+0.9582510
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month10
+</td>
+<td style="text-align:right;">
+2.0061651
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month11
+</td>
+<td style="text-align:right;">
+1.6012739
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month12
+</td>
+<td style="text-align:right;">
+2.0203701
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month2
+</td>
+<td style="text-align:right;">
+0.9258499
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month3
+</td>
+<td style="text-align:right;">
+0.9307948
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month4
+</td>
+<td style="text-align:right;">
+0.7375132
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month5
+</td>
+<td style="text-align:right;">
+1.2504818
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month6
+</td>
+<td style="text-align:right;">
+1.6016113
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month7
+</td>
+<td style="text-align:right;">
+1.9674254
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month8
+</td>
+<td style="text-align:right;">
+1.9667669
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month9
+</td>
+<td style="text-align:right;">
+1.1222168
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># density plot
+villagers2$logit &lt;- predict(fit2)
+
+villagers2 %&gt;%
+  mutate(male = as.factor(male)) %&gt;%
+  ggplot(aes(logit, fill = male)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 0) +
+  labs(title = &quot;Density Plot Based On fit2 (Logistic Regression)&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-6-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># confusion matrix
+villagers2.1 &lt;- villagers2 %&gt;% mutate(prob = predict(fit2, type = &quot;response&quot;), prediction = ifelse(prob &gt; 0.5, 1, 0))
+classify &lt;- villagers2.1 %&gt;% transmute(prob, prediction, truth = male)
+table(prediction = classify$prediction, truth = classify$truth) %&gt;% 
+    addmargins()</code></pre>
+<pre><code>##           truth
+## prediction   0   1 Sum
+##        0    90  65 155
+##        1    97 139 236
+##        Sum 187 204 391</code></pre>
+<pre class="r"><code>probs_for_cd &lt;- predict(fit2, type = &quot;response&quot;)
+class_diag(probs_for_cd, villagers2$male)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       auc
+## 1 0.5856777 0.6813725 0.4812834 0.5889831 0.6121684</code></pre>
+<pre class="r"><code># ROC
+library(plotROC)
+ROCplot &lt;- ggplot(classify) +
+  geom_roc(aes(d = truth, m = prob, n.cuts = 0)) +
+  labs(title = &quot;ROC Plot Based On fit2 (Logistic Regression)&quot;)
+ROCplot</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-6-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># AUC
+calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.6121684</code></pre>
+</div>
+<div id="another-logistic-regression" class="section level3">
+<h3>6. Another logistic regression</h3>
+<p>Finally, I fitted a logistic regression model to predict the binary variable <code>male</code> (0 if no, 1 if yes) from all of my remaining variables. This model had an accuracy of 0.665, a sensitivity (TPR) of 0.691, a specificity (TNR) of 0.636, a precision (PPV) of 0.675, and an AUC of 0.711. These values decreased following 10-fold cross verification (CV); in particular, AUC decreased from 0.711 to 0.517.</p>
+<p>I used LASSO to pick out the variables <code>birth_date</code>, <code>personality_n</code>, and <code>song_n</code> because they produced the simplest model whose accuracy was near that of the best (by <code>lambda.1se</code>). A 10-fold CV performed using LASSO-selected variables yielded an AUC of 0.527, which was less than the AUC of the pre-LASSO model but (slightly) greater than that of the previous 10-fold CV. This AUC value was also worse than the one calculated for <code>fit2</code> in the previous section (0.612).</p>
+<pre class="r"><code># predict `male` from all the remaining variables (except `id` and `name`)
+villagers3 &lt;- villagers2 %&gt;%
+  select(-id, -name, -gender, -species, -birthday, -personality, -song, -catchphrase, -species_n_c, -personality_n_c, -song_n_c)
+
+fit3 &lt;- glm(male ~ ., data = villagers3, family = &quot;binomial&quot;)
+coeftest(fit3)</code></pre>
+<pre><code>##
+## z test of coefficients:
+##
+## Estimate Std. Error z value Pr(&gt;|z|)
+## (Intercept) 1.082430 1.165396 0.9288 0.352988
+## species_n -0.042043 0.025022 -1.6802 0.092911 .
+## birth_month10 0.847692 0.528277 1.6046 0.108574
+## birth_month11 0.472330 0.540885 0.8733 0.382524
+## birth_month12 0.683027 0.538182 1.2691 0.204392
+## birth_month2 -0.085523 0.553415 -0.1545 0.877187
+## birth_month3 -0.045577 0.534850 -0.0852 0.932090
+## birth_month4 -0.210977 0.566425 -0.3725 0.709541
+## birth_month5 0.335954 0.546661 0.6146 0.538848
+## birth_month6 0.564011 0.530925 1.0623 0.288091
+## birth_month7 0.857282 0.529745 1.6183 0.105600
+## birth_month8 0.716250 0.523850 1.3673 0.171537
+## birth_month9 0.149314 0.540559 0.2762 0.782378
+## birth_date10 -0.940723 1.006708 -0.9345 0.350069
+## birth_date11 -1.592268 0.988524 -1.6108 0.107234
+## birth_date12 -2.208481 0.981165 -2.2509 0.024393 *
+## birth_date13 -1.873847 0.970033 -1.9317 0.053392 .
+## birth_date14 -2.166747 0.989558 -2.1896 0.028552 *
+## birth_date15 -2.049246 0.987976 -2.0742 0.038062 *
+## birth_date16 -1.903665 0.988961 -1.9249 0.054240 .
+## birth_date17 -1.464935 0.973991 -1.5041 0.132568
+## birth_date18 -1.816042 0.989163 -1.8359 0.066367 .
+## birth_date19 -1.973377 0.981953 -2.0096 0.044469 *
+## birth_date2 -2.059118 0.975790 -2.1102 0.034841 *
+## birth_date20 -1.037905 1.009757 -1.0279 0.304008
+## birth_date21 -1.904350 0.975121 -1.9529 0.050827 .
+## birth_date22 -1.568340 0.991206 -1.5823 0.113591
+## birth_date23 -1.732750 0.988037 -1.7537 0.079477 .
+## birth_date24 -2.224865 0.972746 -2.2872 0.022184 *
+## birth_date25 -1.940253 0.971346 -1.9975 0.045772 *
+## birth_date26 -1.304800 0.984535 -1.3253 0.185073
+## birth_date27 -2.212564 0.974612 -2.2702 0.023195 *
+## birth_date28 -2.719911 1.037451 -2.6217 0.008749 **
+## birth_date29 -0.149630 1.111503 -0.1346 0.892913
+## birth_date3 -1.303177 0.959777 -1.3578 0.174530
+## birth_date30 -1.439525 0.992315 -1.4507 0.146871
+## birth_date31 -2.113795 1.121424 -1.8849 0.059441 .
+## birth_date4 -1.611555 0.982496 -1.6403 0.100950
+## birth_date5 -1.357078 0.975197 -1.3916 0.164045
+## birth_date6 -1.249189 0.976337 -1.2795 0.200733
+## birth_date7 -0.100914 1.105144 -0.0913 0.927244
+## birth_date8 -1.794772 0.986493 -1.8193 0.068859 .
+## birth_date9 -2.092699 0.957122 -2.1864 0.028783 *
+## personality_n 0.024656 0.011854 2.0800 0.037523 *
+## song_n -0.092872 0.059416 -1.5631 0.118032
+## logit NA NA NA NA
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1</code></pre>
+<pre class="r"><code>exp(coef(fit3)) %&gt;%
+  knitr::kable() %&gt;%
+  kable_classic()</code></pre>
+<table class=" lightable-classic" style='font-family: "Arial Narrow", "Source Sans Pro", sans-serif; margin-left: auto; margin-right: auto;'>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+x
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+(Intercept)
+</td>
+<td style="text-align:right;">
+2.9518436
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+species_n
+</td>
+<td style="text-align:right;">
+0.9588282
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month10
+</td>
+<td style="text-align:right;">
+2.3342520
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month11
+</td>
+<td style="text-align:right;">
+1.6037264
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month12
+</td>
+<td style="text-align:right;">
+1.9798608
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month2
+</td>
+<td style="text-align:right;">
+0.9180322
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month3
+</td>
+<td style="text-align:right;">
+0.9554457
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month4
+</td>
+<td style="text-align:right;">
+0.8097924
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month5
+</td>
+<td style="text-align:right;">
+1.3992746
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month6
+</td>
+<td style="text-align:right;">
+1.7577094
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month7
+</td>
+<td style="text-align:right;">
+2.3567469
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month8
+</td>
+<td style="text-align:right;">
+2.0467438
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_month9
+</td>
+<td style="text-align:right;">
+1.1610377
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date10
+</td>
+<td style="text-align:right;">
+0.3903456
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date11
+</td>
+<td style="text-align:right;">
+0.2034637
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date12
+</td>
+<td style="text-align:right;">
+0.1098675
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date13
+</td>
+<td style="text-align:right;">
+0.1535320
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date14
+</td>
+<td style="text-align:right;">
+0.1145496
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date15
+</td>
+<td style="text-align:right;">
+0.1288321
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date16
+</td>
+<td style="text-align:right;">
+0.1490215
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date17
+</td>
+<td style="text-align:right;">
+0.2310931
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date18
+</td>
+<td style="text-align:right;">
+0.1626682
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date19
+</td>
+<td style="text-align:right;">
+0.1389868
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date2
+</td>
+<td style="text-align:right;">
+0.1275664
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date20
+</td>
+<td style="text-align:right;">
+0.3541958
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date21
+</td>
+<td style="text-align:right;">
+0.1489194
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date22
+</td>
+<td style="text-align:right;">
+0.2083908
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date23
+</td>
+<td style="text-align:right;">
+0.1767976
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date24
+</td>
+<td style="text-align:right;">
+0.1080820
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date25
+</td>
+<td style="text-align:right;">
+0.1436676
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date26
+</td>
+<td style="text-align:right;">
+0.2712267
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date27
+</td>
+<td style="text-align:right;">
+0.1094197
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date28
+</td>
+<td style="text-align:right;">
+0.0658806
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date29
+</td>
+<td style="text-align:right;">
+0.8610267
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date3
+</td>
+<td style="text-align:right;">
+0.2716674
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date30
+</td>
+<td style="text-align:right;">
+0.2370404
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date31
+</td>
+<td style="text-align:right;">
+0.1207787
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date4
+</td>
+<td style="text-align:right;">
+0.1995770
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date5
+</td>
+<td style="text-align:right;">
+0.2574118
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date6
+</td>
+<td style="text-align:right;">
+0.2867373
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date7
+</td>
+<td style="text-align:right;">
+0.9040112
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date8
+</td>
+<td style="text-align:right;">
+0.1661654
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+birth_date9
+</td>
+<td style="text-align:right;">
+0.1233538
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+personality_n
+</td>
+<td style="text-align:right;">
+1.0249622
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+song_n
+</td>
+<td style="text-align:right;">
+0.9113101
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+logit
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># confusion matrix
+prob &lt;- predict(fit3, type = &quot;response&quot;) # get predictions for every villager in the dataset
+pred &lt;- ifelse(prob &gt; .5, 1, 0)
+table(prediction = pred, truth = villagers3$male) %&gt;% addmargins</code></pre>
+<pre><code>##           truth
+## prediction   0   1 Sum
+##        0   119  63 182
+##        1    68 141 209
+##        Sum 187 204 391</code></pre>
+<pre class="r"><code># class_diag for fit3 only
+class_diag(prob, villagers3$male)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       auc
+## 1 0.6649616 0.6911765 0.6363636 0.6746411 0.7110465</code></pre>
+<pre class="r"><code># 10-fold CV
+set.seed(1234)
+k = 10 # choose number of folds
+data &lt;- villagers3[sample(nrow(villagers3)),] # randomly order rows
+folds &lt;- cut(seq(1:nrow(villagers3)), breaks = k,labels = F) #create folds
+diags &lt;- NULL
+for(i in 1 : k) {
+  ## Create training and test sets
+  train &lt;- data[folds != i,]
+  test &lt;- data[folds == i,]
+  truth &lt;- test$male # Truth labels for fold i
+  ## Train model on training set (all but fold i)
+  fit &lt;- glm(male ~ ., data = train, family = &quot;binomial&quot;)
+  ## Test model on test set (fold i)
+  probs &lt;- predict(fit, newdata = test, type = &quot;response&quot;)
+  ## Get diagnostics for fold i
+  diags &lt;- rbind(diags, class_diag(probs,truth))
+}
+summarize_all(diags,mean)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       auc
+## 1 0.4987179 0.5229721 0.4652844 0.5198553 0.5179526</code></pre>
+<pre class="r"><code># LASSO
+library(glmnet)
+y &lt;- as.matrix(villagers3$male)
+x &lt;- model.matrix(male ~ -1+., data = villagers3) # the -1 drops intercept/ref group
+set.seed(1234)
+cv &lt;- cv.glmnet(x, y, family = &#39;binomial&#39;)
+lasso &lt;- glmnet(x, y, family = &#39;binomial&#39;,lambda=cv$lambda.1se)
+coef(lasso)</code></pre>
+<pre><code>## 47 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
+##                         s0
+## (Intercept)   -0.204196151
+## species_n      .          
+## birth_month1   .          
+## birth_month10  .          
+## birth_month11  .          
+## birth_month12  .          
+## birth_month2   .          
+## birth_month3   .          
+## birth_month4   .          
+## birth_month5   .          
+## birth_month6   .          
+## birth_month7   .          
+## birth_month8   .          
+## birth_month9   .          
+## birth_date10   .          
+## birth_date11   .          
+## birth_date12   .          
+## birth_date13   .          
+## birth_date14   .          
+## birth_date15   .          
+## birth_date16   .          
+## birth_date17   .          
+## birth_date18   .          
+## birth_date19   .          
+## birth_date2    .          
+## birth_date20   .          
+## birth_date21   .          
+## birth_date22   .          
+## birth_date23   .          
+## birth_date24   .          
+## birth_date25   .          
+## birth_date26   .          
+## birth_date27   .          
+## birth_date28  -0.090812713
+## birth_date29   0.282668051
+## birth_date3    .          
+## birth_date30   .          
+## birth_date31   .          
+## birth_date4    .          
+## birth_date5    .          
+## birth_date6    .          
+## birth_date7    0.409186039
+## birth_date8    .          
+## birth_date9    .          
+## personality_n  0.005832093
+## song_n        -0.015669302
+## logit          0.539463531</code></pre>
+<pre class="r"><code># 10-fold CV using LASSO variables only
+set.seed(1234)
+k = 10 # choose number of folds
+data &lt;- villagers3[sample(nrow(villagers3)),] # randomly order rows
+folds &lt;- cut(seq(1:nrow(villagers3)), breaks = k,labels = F) #create folds
+diags &lt;- NULL
+for(i in 1 : k) {
+  ## Create training and test sets
+  train &lt;- data[folds != i,]
+  test &lt;- data[folds == i,]
+  truth &lt;- test$male # Truth labels for fold i
+  ## Train model on training set (all but fold i)
+  fit &lt;- glm(male ~ birth_date + personality_n + song_n, data = train, family = &quot;binomial&quot;)
+  ## Test model on test set (fold i)
+  probs &lt;- predict(fit, newdata = test, type = &quot;response&quot;)
+  ## Get diagnostics for fold i
+  diags &lt;- rbind(diags, class_diag(probs,truth))
+}
+summarize_all(diags,mean)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       auc
+## 1 0.5065385 0.5299391 0.4891302 0.5321646 0.5268355</code></pre>
+<hr />
+<pre><code>## R version 3.6.1 (2019-07-05)
+## Platform: x86_64-pc-linux-gnu (64-bit)
+## Running under: Ubuntu 18.04.5 LTS
+##
+## Matrix products: default
+## BLAS: /stor/system/opt/R/R-3.6.1/lib/R/lib/libRblas.so
+## LAPACK:
+/stor/system/opt/R/R-3.6.1/lib/R/lib/libRlapack.so
+##
+## locale:
+## [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C
+LC_TIME=en_US.UTF-8
+## [4] LC_COLLATE=en_US.UTF-8 LC_MONETARY=en_US.UTF-8
+LC_MESSAGES=en_US.UTF-8
+## [7] LC_PAPER=en_US.UTF-8 LC_NAME=C LC_ADDRESS=C
+## [10] LC_TELEPHONE=C LC_MEASUREMENT=en_US.UTF-8
+LC_IDENTIFICATION=C
+##
+## attached base packages:
+## [1] stats graphics grDevices utils datasets methods base
+##
+## other attached packages:
+## [1] glmnet_4.0-2 Matrix_1.3-2 plotROC_2.2.1
+lmtest_0.9-38 zoo_1.8-8
+## [6] sandwich_3.0-0 interactions_1.1.3 rstatix_0.6.0
+kableExtra_1.3.4 forcats_0.5.0
+## [11] stringr_1.4.0 dplyr_1.0.5 purrr_0.3.4 readr_1.4.0
+tidyr_1.1.3
+## [16] tibble_3.1.0 ggplot2_3.3.3 tidyverse_1.3.0
+knitr_1.30
+##
+## loaded via a namespace (and not attached):
+## [1] fs_1.5.0 lubridate_1.7.10 webshot_0.5.2 httr_1.4.2
+tools_3.6.1
+## [6] backports_1.2.1 utf8_1.2.1 R6_2.5.0 DBI_1.1.0
+colorspace_2.0-0
+## [11] withr_2.3.0 tidyselect_1.1.0 curl_4.3
+compiler_3.6.1 cli_2.3.1
+## [16] rvest_1.0.0 xml2_1.3.2 labeling_0.4.2 bookdown_0.21
+scales_1.1.1
+## [21] systemfonts_0.3.2 digest_0.6.27 foreign_0.8-71
+rmarkdown_2.6 svglite_1.2.3.2
+## [26] rio_0.5.16 pkgconfig_2.0.3 htmltools_0.5.0
+dbplyr_2.0.0 highr_0.8
+## [31] rlang_0.4.10 readxl_1.3.1 rstudioapi_0.13
+shape_1.4.5 farver_2.0.3
+## [36] generics_0.1.0 jsonlite_1.7.2 zip_2.1.1 car_3.0-10
+magrittr_2.0.1
+## [41] Rcpp_1.0.6 munsell_0.5.0 fansi_0.4.2 abind_1.4-5
+gdtools_0.2.3
+## [46] lifecycle_1.0.0 stringi_1.5.3 yaml_2.2.1
+carData_3.0-4 debugme_1.1.0
+## [51] plyr_1.8.6 grid_3.6.1 crayon_1.4.1 lattice_0.20-41
+splines_3.6.1
+## [56] haven_2.3.1 jtools_2.1.3 pander_0.6.3 hms_1.0.0
+pillar_1.5.1
+## [61] codetools_0.2-18 reprex_0.3.0 glue_1.4.2
+evaluate_0.14 blogdown_0.20
+## [66] data.table_1.13.6 modelr_0.1.8 foreach_1.5.1
+vctrs_0.3.6 cellranger_1.1.0
+## [71] gtable_0.3.0 assertthat_0.2.1 xfun_0.20
+openxlsx_4.2.3 broom_0.7.3
+## [76] survival_3.2-7 viridisLite_0.3.0 iterators_1.0.13
+ellipsis_0.3.1</code></pre>
+<pre><code>## [1] &quot;2021-05-09 18:24:41 CDT&quot;</code></pre>
+<pre><code>## sysname release
+## &quot;Linux&quot; &quot;4.15.0-142-generic&quot;
+## version nodename
+## &quot;#146-Ubuntu SMP Tue Apr 13 01:11:19 UTC 2021&quot;
+&quot;educcomp04.ccbb.utexas.edu&quot;
+## machine login
+## &quot;x86_64&quot; &quot;unknown&quot;
+## user effective_user
+## &quot;icl283&quot; &quot;icl283&quot;</code></pre>
+</div>
 </div>
 
             

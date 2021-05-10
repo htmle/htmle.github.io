@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="author" content="Eli Le" />
+    <meta name="author" content="Eli Le (he/him or they/them)" />
     
     <link rel="shortcut icon" type="image/x-icon" href="../../img/favicon.ico">
-    <title>Project 1</title>
+    <title>Project 1: Exploratory Data Analysis</title>
     <meta name="generator" content="Hugo 0.83.1" />
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" type="text/css" href="../../css/main.css" />
@@ -54,13 +54,13 @@
       <div class="container">
         <div class="blog-post">
           <h3>
-            <strong><a href="../../project/project1/">Project 1</a></strong>
+            <strong><a href="../../project/project1/">Project 1: Exploratory Data Analysis</a></strong>
           </h3>
         </div>
  
 <div class="blog-title">
           <h4>
-         December 1, 2020 
+         April 6, 2021 
             &nbsp;&nbsp;
             
           </h4>
@@ -70,10 +70,1311 @@
           <div class="panel-body">
             <div class="blogpost">
               
+<script src="../../rmarkdown-libs/kePrint/kePrint.js"></script>
+<link href="../../rmarkdown-libs/lightable/lightable.css" rel="stylesheet" />
 
 
-<div id="test-project-1" class="section level2">
-<h2>Test Project 1</h2>
+<div id="eli-le" class="section level2">
+<h2>Eli Le</h2>
+<div id="introduction" class="section level3">
+<h3>0. Introduction</h3>
+<p>I’ve been a big fan of Taylor Swift’s music since I was in elementary school. Over the years she’s released nine albums across a variety of genres, ranging from country to synth-pop to alternative rock. To get some more insight into the lyrics and audio features associated with Taylor Swift’s discography, I made a <a href="https://open.spotify.com/playlist/3XYAyjXTiRNOQ3AlJ8acFp?si=gRgewElcRXStkm3UfKv0ag">Spotify playlist</a> using songs from Taylor Swift’s nine studio albums and used <code>spotifyr</code> to extract data associated with each song. Spotify assigns each song some <a href="https://beta.developer.spotify.com/documentation/web-api/reference/tracks/get-audio-features/#audio-features-object">attributes</a> such as <code>danceability</code> (based on “tempo, rhythm stability, beat strength, and overall regularity”), <code>acousticness</code> (a confidence measure of whether or not a song is acoustic), and <code>valence</code> (which describes the “musical positiveness conveyed by a track”), all of which are numbers between 0.0 and 1.0. Also available are data on <code>popularity</code> (a value from 1 to 100 calculated based on “how many plays a track received and how recent those plays are”) and <code>tempo</code>.</p>
+<pre class="r"><code># Prepare to pull data from Spotify and Genius
+devtools::install_github(&quot;charlie86/spotifyr&quot;)
+library(spotifyr)
+library(tidyverse)
+Sys.setenv(SPOTIFY_CLIENT_ID = &quot;fcb39961637948d39c8d41385c5da8eb&quot;)
+Sys.setenv(SPOTIFY_CLIENT_SECRET = &quot;346e87fd3d494efc9101771ecd540031&quot;)
+
+# Pull data from Spotify playlist
+ts_spotify &lt;- get_playlist_audio_features(&quot;8fb3j9ab1se1iev472sqofnlo&quot;, 
+    &quot;3XYAyjXTiRNOQ3AlJ8acFp&quot;)
+
+ts_spotify &lt;- ts_spotify %&gt;% arrange(track.name)
+
+# Select variables of interest
+ts_spotify &lt;- ts_spotify %&gt;% select(track_title = track.name, 
+    track_number = track.track_number, album_name = track.album.name, 
+    album_release_date = track.album.release_date, duration_ms = track.duration_ms, 
+    explicit = track.explicit, popularity = track.popularity, 
+    danceability, acousticness, valence, tempo)
+
+glimpse(ts_spotify)</code></pre>
+<pre><code>## Rows: 151
+## Columns: 11
+## $ track_title        &lt;chr&gt; &quot;...Ready For It?&quot;, &quot;‘tis the damn season&quot;, &quot;22&quot;, &quot;…
+## $ track_number       &lt;int&gt; 1, 4, 6, 14, 4, 15, 5, 5, 8, 3, 8, 16, 10, 14, 2, 1…
+## $ album_name         &lt;chr&gt; &quot;reputation&quot;, &quot;evermore (deluxe version)&quot;, &quot;Red (De…
+## $ album_release_date &lt;chr&gt; &quot;2017-11-10&quot;, &quot;2021-01-07&quot;, &quot;2012-10-22&quot;, &quot;2006-10-…
+## $ duration_ms        &lt;int&gt; 208186, 229840, 230133, 220146, 199200, 223293, 327…
+## $ explicit           &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FA…
+## $ popularity         &lt;int&gt; 73, 64, 61, 48, 52, 69, 68, 56, 64, 57, 55, 54, 64,…
+## $ danceability       &lt;dbl&gt; 0.613, 0.575, 0.658, 0.483, 0.576, 0.756, 0.602, 0.…
+## $ acousticness       &lt;dbl&gt; 0.05270, 0.73500, 0.00215, 0.00349, 0.05100, 0.1300…
+## $ valence            &lt;dbl&gt; 0.417, 0.348, 0.668, 0.268, 0.428, 0.399, 0.337, 0.…
+## $ tempo              &lt;dbl&gt; 160.015, 145.916, 104.007, 156.092, 115.028, 111.01…</code></pre>
+<p>After completing the above steps, I had my first dataset: <code>ts_spotify</code>. I wanted to dive into lyric data for my second set, specifically looking at things like <code>sentiment</code> and <code>scrabble_score</code> for each word. To start, I pulled lyric data from Genius with a package called <code>genius</code>. (There really is an R package for everything!)</p>
+<pre class="r"><code># Prepare to pull data from Genius install.packages(&#39;genius&#39;)
+library(genius)
+
+# Specify albums of interest
+ts_albums &lt;- tribble(~artist, ~title, &quot;Taylor Swift&quot;, &quot;Taylor Swift&quot;, 
+    &quot;Taylor Swift&quot;, &quot;Fearless (Platinum Edition)&quot;, &quot;Taylor Swift&quot;, 
+    &quot;Speak Now (Deluxe)&quot;, &quot;Taylor Swift&quot;, &quot;RED (Deluxe Edition)&quot;, 
+    &quot;Taylor Swift&quot;, &quot;1989 (Deluxe)&quot;, &quot;Taylor Swift&quot;, &quot;reputation&quot;, 
+    &quot;Taylor Swift&quot;, &quot;Lover&quot;, &quot;Taylor Swift&quot;, &quot;folklore (deluxe version)&quot;, 
+    &quot;Taylor Swift&quot;, &quot;evermore (deluxe version)&quot;)
+ts_genius &lt;- ts_albums %&gt;% add_genius(artist, title, type = &quot;album&quot;)
+
+# Remove Genius lyrics for alternate versions, demo
+# recordings, and voice memos
+remove_versions &lt;- c(&quot;Teardrops on My Guitar (Pop Version)&quot;, 
+    &quot;Forever &amp; Always (Piano Version)&quot;, &quot;Treacherous (Original Demo Recording)&quot;, 
+    &quot;Red (Original Demo Recording)&quot;, &quot;State of Grace (Acoustic Version)&quot;, 
+    &quot;I Know Places (Voice Memo)&quot;, &quot;I Wish You Would (Voice Memo)&quot;, 
+    &quot;Blank Space (Voice Memo)&quot;)
+ts_genius &lt;- filter(ts_genius, !track_title %in% remove_versions)
+
+# Prepare to separate lines into individual words for further
+# analysis
+library(tidytext)
+data(stop_words)
+ts_genius &lt;- ts_genius %&gt;% group_by(track_title) %&gt;% mutate(line_number = row_number()) %&gt;% 
+    ungroup()
+
+# Fix a specific lyric to separate two words not later
+# removed as part of (ts_)stop_words
+ts_genius$lyric[ts_genius$lyric == &quot;Dancin&#39; in your Levi&#39;sDrunk under a streetlight, I&quot;] &lt;- &quot;Dancin&#39; in your Levi&#39;s Drunk under a streetlight, I&quot;
+
+# Separate lines into individual words
+words &lt;- ts_genius %&gt;% unnest_tokens(word, lyric)</code></pre>
+<p>This next part is kind of inelegant, sorry–I’m trying to fix some of the quirks in the Genius lyric data, which is all user-sourced and tends to reflect Taylor Swift’s habit of dropping the final “g” in a lot of her gerunds. The code is also pretty long and not very interesting, so I’ve opted to hide it by default (if you want to see it, click the Code button below).</p>
+<pre class="r fold-hide"><code># Fix non-standardized spellings (and remove stop words where
+# applicable)
+words$word[words$word == &quot;time&#39;cause&quot;] &lt;- &quot;time&quot;
+words$word[words$word == &quot;bedpost&#39;cause&quot;] &lt;- &quot;bedpost&quot;
+words$word[words$word == &quot;crowd32&quot;] &lt;- &quot;crowd&quot;
+words$word[words$word == &quot;can&#39;tso&quot;] &lt;- &quot;can&#39;t&quot;
+words$word[words$word == &quot;you&#39;cause&quot;] &lt;- &quot;you&quot;  # I realize &#39;you&#39; and &#39;&#39;cause&#39; are both stop words, so I could have picked either one here
+words$word[words$word == &quot;ileft&quot;] &lt;- &quot;left&quot;
+words$word[words$word == &quot;insane&#39;cause&quot;] &lt;- &quot;insane&quot;
+words$word[words$word == &quot;ican&#39;t&quot;] &lt;- &quot;can&#39;t&quot;
+words$word[words$word == &quot;easy&#39;cause&quot;] &lt;- &quot;easy&quot;
+words$word[words$word == &quot;nothin&#39;and&quot;] &lt;- &quot;nothing&quot;
+words$word[words$word == &quot;drinkin&#39;while&quot;] &lt;- &quot;drinking&quot;
+words$word[words$word == &quot;room&#39;cause&quot;] &lt;- &quot;room&quot;
+words$word[words$word == &quot;curfew20&quot;] &lt;- &quot;curfew&quot;
+words$word[words$word == &quot;grace&#39;cause&quot;] &lt;- &quot;grace&quot;
+words$word[words$word == &quot;wine&#39;cause&quot;] &lt;- &quot;wine&quot;
+words$word[words$word == &quot;won&#39;tand&quot;] &lt;- &quot;won&#39;t&quot;
+words$word[words$word == &quot;glistenyou&#39;re&quot;] &lt;- &quot;glisten&quot;
+
+# Add a final &#39;g&#39; to all of these gerunds
+words$word[words$word == &quot;lookin&quot;] &lt;- &quot;looking&quot;
+words$word[words$word == &quot;standin&quot;] &lt;- &quot;standing&quot;
+words$word[words$word == &quot;lovin&quot;] &lt;- &quot;loving&quot;
+words$word[words$word == &quot;dancin&quot;] &lt;- &quot;dancing&quot;
+words$word[words$word == &quot;lettin&quot;] &lt;- &quot;letting&quot;
+words$word[words$word == &quot;ridin&quot;] &lt;- &quot;riding&quot;
+words$word[words$word == &quot;livin&quot;] &lt;- &quot;living&quot;
+words$word[words$word == &quot;sneakin&quot;] &lt;- &quot;sneaking&quot;
+words$word[words$word == &quot;comin&quot;] &lt;- &quot;coming&quot;
+words$word[words$word == &quot;drivin&quot;] &lt;- &quot;driving&quot;
+words$word[words$word == &quot;dyin&quot;] &lt;- &quot;dying&quot;
+words$word[words$word == &quot;thankin&quot;] &lt;- &quot;thanking&quot;
+words$word[words$word == &quot;hopin&quot;] &lt;- &quot;hoping&quot;
+words$word[words$word == &quot;feelin&quot;] &lt;- &quot;feeling&quot;
+words$word[words$word == &quot;nothin&quot;] &lt;- &quot;nothing&quot;
+words$word[words$word == &quot;laughin&quot;] &lt;- &quot;laughing&quot;
+words$word[words$word == &quot;flyin&quot;] &lt;- &quot;flying&quot;
+words$word[words$word == &quot;waitin&quot;] &lt;- &quot;waiting&quot;
+words$word[words$word == &quot;thinkin&quot;] &lt;- &quot;thinking&quot;
+words$word[words$word == &quot;beggin&quot;] &lt;- &quot;begging&quot;
+words$word[words$word == &quot;wonderin&quot;] &lt;- &quot;wondering&quot;
+words$word[words$word == &quot;pickin&quot;] &lt;- &quot;picking&quot;
+words$word[words$word == &quot;guessin&quot;] &lt;- &quot;guessing&quot;
+words$word[words$word == &quot;cruisin&quot;] &lt;- &quot;cruising&quot;
+words$word[words$word == &quot;movin&quot;] &lt;- &quot;moving&quot;
+words$word[words$word == &quot;groovin&quot;] &lt;- &quot;grooving&quot;
+words$word[words$word == &quot;whippin&quot;] &lt;- &quot;whipping&quot;
+words$word[words$word == &quot;breakin&quot;] &lt;- &quot;breaking&quot;
+words$word[words$word == &quot;toyin&quot;] &lt;- &quot;toying&quot;
+words$word[words$word == &quot;shakin&quot;] &lt;- &quot;shaking&quot;
+words$word[words$word == &quot;pacin&quot;] &lt;- &quot;pacing&quot;
+words$word[words$word == &quot;touchin&quot;] &lt;- &quot;touching&quot;
+words$word[words$word == &quot;skippin&quot;] &lt;- &quot;skipping&quot;
+words$word[words$word == &quot;runnin&quot;] &lt;- &quot;running&quot;
+words$word[words$word == &quot;screamin&quot;] &lt;- &quot;screaming&quot;
+words$word[words$word == &quot;bein&quot;] &lt;- &quot;being&quot;
+words$word[words$word == &quot;callin&quot;] &lt;- &quot;calling&quot;
+words$word[words$word == &quot;tryin&quot;] &lt;- &quot;trying&quot;
+words$word[words$word == &quot;makin&quot;] &lt;- &quot;making&quot;
+words$word[words$word == &quot;stressin&quot;] &lt;- &quot;stressing&quot;
+words$word[words$word == &quot;obsessin&quot;] &lt;- &quot;obsessing&quot;
+words$word[words$word == &quot;holdin&quot;] &lt;- &quot;holding&quot;
+words$word[words$word == &quot;seein&quot;] &lt;- &quot;seeing&quot;
+words$word[words$word == &quot;starin&quot;] &lt;- &quot;staring&quot;
+words$word[words$word == &quot;changin&quot;] &lt;- &quot;changing&quot;
+words$word[words$word == &quot;bleedin&quot;] &lt;- &quot;bleeding&quot;
+words$word[words$word == &quot;chasin&quot;] &lt;- &quot;chasing&quot;
+words$word[words$word == &quot;stayin&quot;] &lt;- &quot;staying&quot;
+words$word[words$word == &quot;fakin&quot;] &lt;- &quot;faking&quot;
+words$word[words$word == &quot;dividin&quot;] &lt;- &quot;dividing&quot;
+words$word[words$word == &quot;keepin&quot;] &lt;- &quot;keeping&quot;</code></pre>
+<p>With those words taken care of, I moved on to calculating <code>sentiment</code> and <code>scrabble_score</code> for each word using some handy features in <code>tidytext</code> and <code>ScrabbleScore</code>.</p>
+<pre class="r"><code># Remove stop words (extremely common words such as “the”, “of”, and “I”)
+tidy_words &lt;- words %&gt;%
+  anti_join(stop_words)
+
+# Filter out some more stop words specific to Taylor Swift&#39;s lyrics
+ts_stop_words &lt;- c(&quot;ooh&quot;, &quot;yeah&quot;, &quot;ah&quot;, &quot;gonna&quot;, &quot;di&quot;, &quot;ey&quot;, &quot;hey&quot;, &quot;whoa&quot;, &quot;ha&quot;, &quot;la&quot;, &quot;da&quot;, &quot;uh&quot;, &quot;til&quot;, &quot;would&#39;ve&quot;, &quot;em&quot;, &quot;could&#39;ve&quot;, &quot;22&quot;, &quot;aah&quot;, &quot;bout&quot;, &quot;eeh&quot;, &quot;usin&quot;, &quot;doin&quot;, &quot;ya&quot;, &quot;tryna&quot;, &quot;2&quot;, &quot;ra&quot;, &quot;haa&quot;, &quot;ho&quot;, &quot;huh&quot;, &quot;1&quot;, &quot;2am&quot;, &quot;shoulda&quot;, &quot;why&#39;d&quot;, &quot;iwish&quot;, &quot;20&quot;, &quot;mm&quot;, &quot;na&quot;, &quot;16th&quot;, &quot;ahh&quot;, &quot;hmm&quot;, &quot;one&#39;s&quot;, &quot;sayin&quot;, &quot;till&quot;, &quot;tis&quot;, &quot;4&quot;, &quot;a.m&quot;, &quot;ayy&quot;, &quot;gettin&quot;, &quot;should&#39;ve&quot;, &quot;wanna&quot;, &quot;mmmm&quot;, &quot;her&#39;d&quot;, &quot;i&#39;ma&quot;, &quot;outta&quot;, &quot;mmm&quot;, &quot;whatcha&quot;, &quot;say&quot;, &quot;woah&quot;, &quot;30&quot;, &quot;amas&quot;, &quot;kinda&quot;, &quot;that&#39;ll&quot;, &quot;how&#39;d&quot;, &quot;pj&#39;s&quot;, &quot;58&quot;, &quot;9th&quot;, &quot;yay&quot;, &quot;18&quot;, &quot;45&quot;, &quot;17&quot;, &quot;&#39;cause&quot;, &quot;ta&quot;, &quot;gon&quot;, &quot;eh&quot;, &quot;git&quot;, &quot;g5&quot;, &quot;4th&quot;, &quot;whoah&quot;, &quot;haha&quot;, &quot;ii&quot;, &quot;3&quot;, &quot;must&#39;ve&quot;, &quot;3i&quot;, &quot;3you&quot;, &quot;90s&quot;, &quot;l.a&quot;, &quot;who&#39;ll&quot;, &quot;who&#39;d&quot;, &quot;there&#39;ll&quot;, &quot;how&#39;d&quot;, &quot;oh&quot;, &quot;oh&#39;cause&quot;, &quot;st&quot;)
+tidy_words &lt;- filter(tidy_words, !word %in% ts_stop_words)
+
+# Remove rows containing NA
+tidy_words &lt;- na.omit(tidy_words)
+
+# Find and count unique, non-title words in each track
+unique_nontitle_words &lt;- tidy_words %&gt;%
+  group_by(track_title) %&gt;%
+  count(word) %&gt;% 
+  filter(n == 1) %&gt;%
+  mutate(unique_nontitle_words_in_track = n()) %&gt;%
+  select(-n)
+
+# For each word, assign sentiment based on the `bing` lexicon (positive or negative)
+# install.packages(&quot;textdata&quot;)
+song_sentiment &lt;- unique_nontitle_words %&gt;%
+  group_by(track_title) %&gt;%
+  mutate(word_count = 1:n(), index = word_count %/% 500 + 1) %&gt;%
+  inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+  count(track_title, index = index , sentiment) %&gt;%
+  ungroup() %&gt;%
+  spread(sentiment, n, fill = 0) %&gt;%
+  mutate(sentiment = positive - negative) %&gt;%
+  select(-index)
+
+# Calculate Scrabble scores for each word, then an average for the track
+# install.packages(&quot;ScrabbleScore&quot;)
+scrabble &lt;- unique_nontitle_words %&gt;%
+  group_by(track_title) %&gt;%
+  mutate(scrabble_score = ScrabbleScore::sws(word)) %&gt;%
+  na.omit() %&gt;% # removes words that cause NA because of punctuation
+  mutate(track_average_scrabble_score = mean(scrabble_score))</code></pre>
+<p>To get my second dataset, <code>sentiment_and_scrabble</code>, I used <code>left_join</code> on the sentiment and scrabble sets I prepared above, then renamed some of the variables so they were more easily understandable.</p>
+<pre class="r"><code># Join `song_sentiment` and `scrabble`
+sentiment_and_scrabble &lt;- full_join(song_sentiment, scrabble, 
+    by = &quot;track_title&quot;) %&gt;% rename(track_negative = negative, 
+    track_positive = positive, track_sentiment = sentiment, word_scrabble_score = scrabble_score)
+
+glimpse(sentiment_and_scrabble)</code></pre>
+<pre><code>## Rows: 3,258
+## Columns: 8
+## $ track_title                    &lt;chr&gt; &quot;...Ready for It?&quot;, &quot;...Ready for It?&quot;,…
+## $ track_negative                 &lt;dbl&gt; 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, …
+## $ track_positive                 &lt;dbl&gt; 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, …
+## $ track_sentiment                &lt;dbl&gt; -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,…
+## $ word                           &lt;chr&gt; &quot;act&quot;, &quot;boys&quot;, &quot;burton&quot;, &quot;comparison&quot;, …
+## $ unique_nontitle_words_in_track &lt;int&gt; 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,…
+## $ word_scrabble_score            &lt;dbl&gt; 5, 9, 8, 16, 11, 10, 13, 10, 9, 6, 8, 1…
+## $ track_average_scrabble_score   &lt;dbl&gt; 9.636364, 9.636364, 9.636364, 9.636364,…</code></pre>
+<p>Between these datasets, I’m curious to see whether there will be an association between a track’s <code>valence</code> (“musical positiveness” as defined in <code>ts_spotify</code>) and <code>track_sentiment</code>. I’m also wondering if <code>duration_ms</code> shows any association with <code>unique_nontitle_words_in_track</code> or <code>track_average_scrabble_score</code>.</p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+</div>
+<div id="tidying" class="section level3">
+<h3>1. Tidying</h3>
+<p>To clean up <code>sentiment_and_scrabble</code>, I made each song its own observation using <code>pivot_wider</code>.</p>
+<pre class="r"><code>sentiment_and_scrabble_tidy &lt;- sentiment_and_scrabble %&gt;%
+  subset(select = c(1, 2, 3, 4, 6, 8, 5, 7)) %&gt;% # rearrange columns to make more sense
+  pivot_wider(names_from = &quot;word&quot;, values_from = &quot;word_scrabble_score&quot;) %&gt;%
+  subset(select = c(1:6)) # keep only columns that apply to tracks, not individual words</code></pre>
+<p>Prior to joining the datasets, I had to go in and standardize some <code>track_title</code> entries in <code>sentiment_and_scrabble_tidy</code> to match those in <code>ts_spotify</code> (and vice versa). This wasn’t the most exciting task, but I had to do it because of formatting differences between Spotify and Genius. (Again, apologies for how wildly long and inelegant this is!)</p>
+<pre class="r fold-hide"><code># Edit `track_title`s in `sentiment_and_scrabble`
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;...Ready for It?&quot;] &lt;- &quot;...Ready For It?&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;A Place In This World&quot;] &lt;- &quot;A Place in this World&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;All You Had to Do Was Stay&quot;] &lt;- &quot;All You Had To Do Was Stay&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Back to December&quot;] &lt;- &quot;Back To December&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Cold as You&quot;] &lt;- &quot;Cold As You&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Come Back... Be Here&quot;] &lt;- &quot;Come Back...Be Here&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Dancing with Our Hands Tied&quot;] &lt;- &quot;Dancing With Our Hands Tied&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Death by a Thousand Cuts&quot;] &lt;- &quot;Death By A Thousand Cuts&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Everything Has Changed (Ft. Ed Sheeran)&quot;] &lt;- &quot;Everything Has Changed&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Girl at Home&quot;] &lt;- &quot;Girl At Home&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;How You Get the Girl&quot;] &lt;- &quot;How You Get The Girl&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;I’m Only Me When I’m with You&quot;] &lt;- &quot;I’m Only Me When I’m With You&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;If This Was a Movie&quot;] &lt;- &quot;If This Was A Movie&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;It’s Nice to Have a Friend&quot;] &lt;- &quot;It’s Nice To Have A Friend&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;it’s time to go&quot;] &lt;- &quot;it’s time to go - bonus track&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;King of My Heart&quot;] &lt;- &quot;King Of My Heart&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Out of the Woods&quot;] &lt;- &quot;Out Of The Woods&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Picture to Burn&quot;] &lt;- &quot;Picture To Burn&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;right where you left me&quot;] &lt;- &quot;right where you left me - bonus track&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;State of Grace&quot;] &lt;- &quot;State Of Grace&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Teardrops on My Guitar&quot;] &lt;- &quot;Teardrops On My Guitar - Radio Single Remix&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;the lakes&quot;] &lt;- &quot;the lakes - bonus track&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;The Other Side of the Door&quot;] &lt;- &quot;The Other Side Of The Door&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;The Story of Us&quot;] &lt;- &quot;The Story Of Us&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;This is Why We Can’t Have Nice Things&quot;] &lt;- &quot;This Is Why We Can’t Have Nice Things&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;Welcome to New York&quot;] &lt;- &quot;Welcome To New York&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;You Are in Love&quot;] &lt;- &quot;You Are In Love&quot;
+sentiment_and_scrabble_tidy$track_title[sentiment_and_scrabble_tidy$track_title == 
+    &quot;You Belong with Me&quot;] &lt;- &quot;You Belong With Me&quot;
+
+# Edit `track_title`s in `ts_spotify`
+ts_spotify$track_title[ts_spotify$track_title == &quot;‘tis the damn season&quot;] &lt;- &quot;&#39;tis the damn season&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;Breathe&quot;] &lt;- &quot;Breathe (Ft. Colbie Caillat)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;coney island (feat. The National)&quot;] &lt;- &quot;coney island (Ft. The National)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;End Game&quot;] &lt;- &quot;End Game (Ft. Ed Sheeran &amp; Future)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;evermore (feat. Bon Iver)&quot;] &lt;- &quot;evermore (Ft. Bon Iver)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;Everything Has Changed&quot;] &lt;- &quot;Everything Has Changed (Ft. Ed Sheeran)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;exile (feat. Bon Iver)&quot;] &lt;- &quot;exile (Ft. Bon Iver)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;ME! (feat. Brendon Urie of Panic! At The Disco)&quot;] &lt;- &quot;ME! (Ft. Brendon Urie)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;no body, no crime (feat. HAIM)&quot;] &lt;- &quot;no body, no crime (Ft. HAIM)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;Soon You’ll Get Better (feat. The Chicks)&quot;] &lt;- &quot;Soon You&#39;ll Get Better (Ft. The Chicks)&quot;
+ts_spotify$track_title[ts_spotify$track_title == &quot;The Last Time&quot;] &lt;- &quot;The Last Time (Ft. Gary Lightbody)&quot;</code></pre>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+</div>
+<div id="joiningmerging" class="section level3">
+<h3>2. Joining/Merging</h3>
+<p>I used <code>full_join</code> to merge <code>ts_spotify</code> with <code>sentiment_and_scrabble_tidy</code> to get <code>swift_spotify_sentiment_scrabble</code>. For my purposes, <code>full_join</code> was more appropriate than <code>left_join</code> or <code>inner_join</code> because it minimized the likelihood that I would lose data due to NAs caused by formatting and other issues between the two datasets (more on that below).</p>
+<pre class="r"><code>swift_spotify_sentiment_scrabble &lt;- full_join(ts_spotify, sentiment_and_scrabble_tidy, 
+    by = &quot;track_title&quot;)</code></pre>
+<p>I needed to manually fix an error where the data for ~40 songs would not join no matter what I tried (everything on Stack Overflow). Instead of joining to form one track with all the required information, each of these songs would remain its own row with half of the values <code>NA</code>. To get around this, I opened up the data in Microsoft Excel (after exporting), then imported it back into RStudio. I also decided to drop <code>track_number</code> and <code>album_release_date</code> since they were fun to know, but ultimately not relevant to my analysis.</p>
+<pre class="r"><code>library(readr)
+s4 &lt;- read_csv(&quot;s4.csv&quot;) %&gt;% select(-track_number, -album_release_date) %&gt;% 
+    na.omit %&gt;% arrange(track_title)
+glimpse(s4)</code></pre>
+<pre><code>## Rows: 148
+## Columns: 14
+## $ track_title                    &lt;chr&gt; &quot;...Ready For It?&quot;, &quot;&#39;tis the damn seas…
+## $ album_name                     &lt;chr&gt; &quot;reputation&quot;, &quot;evermore (deluxe version…
+## $ duration_ms                    &lt;dbl&gt; 208186, 229840, 230133, 220146, 199200,…
+## $ explicit                       &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALS…
+## $ popularity                     &lt;dbl&gt; 74, 67, 63, 50, 54, 71, 70, 58, 66, 59,…
+## $ danceability                   &lt;dbl&gt; 0.613, 0.575, 0.658, 0.483, 0.576, 0.75…
+## $ acousticness                   &lt;dbl&gt; 0.05270, 0.73500, 0.00215, 0.00349, 0.0…
+## $ valence                        &lt;dbl&gt; 0.417, 0.348, 0.668, 0.268, 0.428, 0.39…
+## $ tempo                          &lt;dbl&gt; 160.015, 145.916, 104.007, 156.092, 115…
+## $ track_negative                 &lt;dbl&gt; 4, 3, 2, 1, 1, 4, 9, 1, 1, 10, 6, 0, 3,…
+## $ track_positive                 &lt;dbl&gt; 2, 1, 4, 0, 2, 2, 6, 0, 1, 4, 4, 1, 2, …
+## $ track_sentiment                &lt;dbl&gt; -2, -2, 2, -1, 1, -2, -3, -1, 0, -6, -2…
+## $ unique_nontitle_words_in_track &lt;dbl&gt; 33, 37, 18, 13, 20, 36, 81, 11, 16, 47,…
+## $ track_average_scrabble_score   &lt;dbl&gt; 9.636364, 9.714286, 10.555556, 9.384615…</code></pre>
+<p>I wasn’t able to get complete <code>sentiment_and_scrabble</code> data for three of the tracks included in this dataset (<code>Come In With The Rain</code>, <code>gold rush</code>, and <code>Untouchable</code>)–in each of these cases, I only got data for <code>scrabble</code>, not <code>sentiment</code>. Since these NA values would interfere with some of the summary statistics calculated in the next step, I decided to remove these tracks from the dataset. This final dataset, <code>s4</code>, contains 148 tracks from Taylor Swift’s discography and 13 metrics for each track.</p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+</div>
+<div id="wrangling" class="section level3">
+<h3>3. Wrangling</h3>
+<p>To start exploring my dataset, I used <code>filter</code> and <code>arrange</code> to print the top 10 most popular songs, as defined by data from Spotify. I then used <code>mutate</code> to create a new variable (<code>above_average_popularity</code>) as a function of whether or not a track’s <code>popularity</code> was greater than average. Following this, I calculated some more general summary statistics, using <code>group_by</code> to group tracks by <code>album_name</code>. Within <code>summarize</code>, I found <code>mean</code>, <code>sd</code>, <code>var</code>, <code>min</code>, and <code>max</code> for each of my numeric variables. I took a subset of <code>s4_summary_by_album</code> to show what format it’s in without printing a huge table, using <code>select</code> to grab <code>album_name</code> and all of the summary statistics that describe <code>scrabble_score</code>. Finally, I show a correlation matrix for the numeric variables in <code>s4</code>.</p>
+<pre class="r"><code># install.packages(&#39;kableExtra&#39;)
+library(knitr)
+library(kableExtra)
+
+# Display data for the 10 songs with the highest `popularity`
+top_10 &lt;- s4 %&gt;%
+  filter(popularity &gt; 50) %&gt;%
+  arrange(desc(popularity)) %&gt;%
+  head(10)
+top_10</code></pre>
+<pre><code>## # A tibble: 10 x 14
+##    track_title           album_name duration_ms explicit popularity danceability
+##    &lt;chr&gt;                 &lt;chr&gt;            &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;        &lt;dbl&gt;
+##  1 You Need To Calm Down Lover           171360 FALSE            81        0.771
+##  2 Lover                 Lover           221306 FALSE            80        0.359
+##  3 ME! (Ft. Brendon Uri… Lover           193000 FALSE            80        0.61 
+##  4 The Man               Lover           190360 FALSE            79        0.777
+##  5 Delicate              reputation      232253 FALSE            78        0.75 
+##  6 Cruel Summer          Lover           178426 FALSE            77        0.552
+##  7 Look What You Made M… reputation      211853 FALSE            77        0.766
+##  8 Getaway Car           reputation      233626 FALSE            75        0.562
+##  9 Paper Rings           Lover           222400 FALSE            75        0.811
+## 10 ...Ready For It?      reputation      208186 FALSE            74        0.613
+## # … with 8 more variables: acousticness &lt;dbl&gt;, valence &lt;dbl&gt;, tempo &lt;dbl&gt;,
+## #   track_negative &lt;dbl&gt;, track_positive &lt;dbl&gt;, track_sentiment &lt;dbl&gt;,
+## #   unique_nontitle_words_in_track &lt;dbl&gt;, track_average_scrabble_score &lt;dbl&gt;</code></pre>
+<pre class="r"><code># Create new variable `above_average_popularity` in `s4`
+mean_popularity &lt;- s4 %&gt;%
+  summarize(mean(popularity))
+s4 &lt;- s4 %&gt;%
+  mutate(above_average_popularity = (popularity &gt; mean_popularity$`mean(popularity)`))
+
+# Calculate summary statistics for the data in `s4`, grouped by the categorical variable `album_name`
+s4_summary_by_album &lt;- s4 %&gt;%
+  group_by(album_name) %&gt;%
+  summarize(mean(duration_ms), # duration_ms
+            sd(duration_ms),
+            var(duration_ms),
+            min(duration_ms),
+            max(duration_ms),
+            mean(popularity), # popularity
+            sd(popularity),
+            var(popularity),
+            min(popularity),
+            max(popularity),
+            mean(danceability), # danceability
+            sd(danceability),
+            var(danceability),
+            min(danceability),
+            max(danceability),
+            mean(acousticness), # acousticness
+            sd(acousticness),
+            var(acousticness),
+            min(acousticness),
+            max(acousticness),
+            mean(valence), # valence
+            sd(valence),
+            var(valence),
+            min(valence),
+            max(valence),
+            mean(tempo), # tempo
+            sd(tempo),
+            var(tempo),
+            min(tempo),
+            max(tempo),
+            mean(track_negative), # track_negative
+            sd(track_negative),
+            var(track_negative),
+            min(track_negative),
+            max(track_negative),
+            mean(track_positive), # track_positive
+            sd(track_positive),
+            var(track_positive),
+            min(track_positive),
+            max(track_positive),
+            mean(track_sentiment), # track_sentiment
+            sd(track_sentiment),
+            var(track_sentiment),
+            min(track_sentiment),
+            max(track_sentiment),
+            mean(unique_nontitle_words_in_track), # unique_nontitle_words_in_track
+            sd(unique_nontitle_words_in_track),
+            var(unique_nontitle_words_in_track),
+            min(unique_nontitle_words_in_track),
+            max(unique_nontitle_words_in_track),
+            mean(track_average_scrabble_score),# track_average_scrabble_score
+            sd(track_average_scrabble_score),
+            var(track_average_scrabble_score),
+            min(track_average_scrabble_score),
+            max(track_average_scrabble_score))
+
+# Show `scrabble_score`-related subset of `s4_summary_by_album`
+s4_scrabble_summary &lt;- s4_summary_by_album %&gt;%
+  select(&quot;album_name&quot;, contains(&quot;scrabble_score&quot;)) %&gt;%
+  kable() %&gt;%
+  kable_styling(font_size = 8)
+s4_scrabble_summary</code></pre>
+<table class="table" style="font-size: 8px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+album_name
+</th>
+<th style="text-align:right;">
+mean(track_average_scrabble_score)
+</th>
+<th style="text-align:right;">
+sd(track_average_scrabble_score)
+</th>
+<th style="text-align:right;">
+var(track_average_scrabble_score)
+</th>
+<th style="text-align:right;">
+min(track_average_scrabble_score)
+</th>
+<th style="text-align:right;">
+max(track_average_scrabble_score)
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+1989 (Deluxe Edition)
+</td>
+<td style="text-align:right;">
+9.411413
+</td>
+<td style="text-align:right;">
+0.7793509
+</td>
+<td style="text-align:right;">
+0.6073878
+</td>
+<td style="text-align:right;">
+8.100000
+</td>
+<td style="text-align:right;">
+10.84000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+evermore (deluxe version)
+</td>
+<td style="text-align:right;">
+9.502473
+</td>
+<td style="text-align:right;">
+0.4916377
+</td>
+<td style="text-align:right;">
+0.2417076
+</td>
+<td style="text-align:right;">
+8.791667
+</td>
+<td style="text-align:right;">
+10.33333
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Fearless Platinum Edition
+</td>
+<td style="text-align:right;">
+9.560160
+</td>
+<td style="text-align:right;">
+0.7156827
+</td>
+<td style="text-align:right;">
+0.5122018
+</td>
+<td style="text-align:right;">
+8.666667
+</td>
+<td style="text-align:right;">
+11.50000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+folklore (deluxe version)
+</td>
+<td style="text-align:right;">
+9.634499
+</td>
+<td style="text-align:right;">
+0.6848660
+</td>
+<td style="text-align:right;">
+0.4690414
+</td>
+<td style="text-align:right;">
+8.802817
+</td>
+<td style="text-align:right;">
+10.96552
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Lover
+</td>
+<td style="text-align:right;">
+9.506511
+</td>
+<td style="text-align:right;">
+0.6380938
+</td>
+<td style="text-align:right;">
+0.4071637
+</td>
+<td style="text-align:right;">
+7.968750
+</td>
+<td style="text-align:right;">
+10.29730
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Red (Deluxe Edition)
+</td>
+<td style="text-align:right;">
+9.761090
+</td>
+<td style="text-align:right;">
+0.8353072
+</td>
+<td style="text-align:right;">
+0.6977382
+</td>
+<td style="text-align:right;">
+8.212121
+</td>
+<td style="text-align:right;">
+11.36842
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+reputation
+</td>
+<td style="text-align:right;">
+9.473525
+</td>
+<td style="text-align:right;">
+0.6916400
+</td>
+<td style="text-align:right;">
+0.4783659
+</td>
+<td style="text-align:right;">
+8.695652
+</td>
+<td style="text-align:right;">
+11.52000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Speak Now (Deluxe Edition)
+</td>
+<td style="text-align:right;">
+9.843808
+</td>
+<td style="text-align:right;">
+0.6215473
+</td>
+<td style="text-align:right;">
+0.3863210
+</td>
+<td style="text-align:right;">
+9.058824
+</td>
+<td style="text-align:right;">
+11.62162
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Taylor Swift
+</td>
+<td style="text-align:right;">
+9.640711
+</td>
+<td style="text-align:right;">
+0.8064913
+</td>
+<td style="text-align:right;">
+0.6504281
+</td>
+<td style="text-align:right;">
+8.000000
+</td>
+<td style="text-align:right;">
+11.29412
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># Make correlation matrix
+s4_correlations &lt;- s4 %&gt;%
+  select_if(is.numeric) %&gt;%
+  cor(use = &quot;pair&quot;) %&gt;%
+  kable() %&gt;%
+  kable_styling(font_size = 8)
+s4_correlations</code></pre>
+<table class="table" style="font-size: 8px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+duration_ms
+</th>
+<th style="text-align:right;">
+popularity
+</th>
+<th style="text-align:right;">
+danceability
+</th>
+<th style="text-align:right;">
+acousticness
+</th>
+<th style="text-align:right;">
+valence
+</th>
+<th style="text-align:right;">
+tempo
+</th>
+<th style="text-align:right;">
+track_negative
+</th>
+<th style="text-align:right;">
+track_positive
+</th>
+<th style="text-align:right;">
+track_sentiment
+</th>
+<th style="text-align:right;">
+unique_nontitle_words_in_track
+</th>
+<th style="text-align:right;">
+track_average_scrabble_score
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+duration_ms
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.2528402
+</td>
+<td style="text-align:right;">
+-0.3049262
+</td>
+<td style="text-align:right;">
+0.1209942
+</td>
+<td style="text-align:right;">
+-0.4458944
+</td>
+<td style="text-align:right;">
+0.0206481
+</td>
+<td style="text-align:right;">
+0.2296380
+</td>
+<td style="text-align:right;">
+0.2496029
+</td>
+<td style="text-align:right;">
+-0.0682106
+</td>
+<td style="text-align:right;">
+0.3385649
+</td>
+<td style="text-align:right;">
+0.0657059
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+popularity
+</td>
+<td style="text-align:right;">
+-0.2528402
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+0.1612096
+</td>
+<td style="text-align:right;">
+0.1699437
+</td>
+<td style="text-align:right;">
+0.0337217
+</td>
+<td style="text-align:right;">
+-0.0308053
+</td>
+<td style="text-align:right;">
+0.2395671
+</td>
+<td style="text-align:right;">
+-0.0083334
+</td>
+<td style="text-align:right;">
+-0.2450132
+</td>
+<td style="text-align:right;">
+0.2436290
+</td>
+<td style="text-align:right;">
+-0.0927759
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+danceability
+</td>
+<td style="text-align:right;">
+-0.3049262
+</td>
+<td style="text-align:right;">
+0.1612096
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.2055570
+</td>
+<td style="text-align:right;">
+0.3833061
+</td>
+<td style="text-align:right;">
+-0.1902627
+</td>
+<td style="text-align:right;">
+-0.0893997
+</td>
+<td style="text-align:right;">
+-0.0825593
+</td>
+<td style="text-align:right;">
+0.0360087
+</td>
+<td style="text-align:right;">
+-0.0244873
+</td>
+<td style="text-align:right;">
+-0.0734604
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+acousticness
+</td>
+<td style="text-align:right;">
+0.1209942
+</td>
+<td style="text-align:right;">
+0.1699437
+</td>
+<td style="text-align:right;">
+-0.2055570
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.1955259
+</td>
+<td style="text-align:right;">
+-0.0652582
+</td>
+<td style="text-align:right;">
+0.1631755
+</td>
+<td style="text-align:right;">
+0.0987506
+</td>
+<td style="text-align:right;">
+-0.0993264
+</td>
+<td style="text-align:right;">
+0.2734671
+</td>
+<td style="text-align:right;">
+-0.0032271
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+valence
+</td>
+<td style="text-align:right;">
+-0.4458944
+</td>
+<td style="text-align:right;">
+0.0337217
+</td>
+<td style="text-align:right;">
+0.3833061
+</td>
+<td style="text-align:right;">
+-0.1955259
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.0390315
+</td>
+<td style="text-align:right;">
+-0.0398966
+</td>
+<td style="text-align:right;">
+-0.1099727
+</td>
+<td style="text-align:right;">
+-0.0312408
+</td>
+<td style="text-align:right;">
+-0.0658305
+</td>
+<td style="text-align:right;">
+0.0478014
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tempo
+</td>
+<td style="text-align:right;">
+0.0206481
+</td>
+<td style="text-align:right;">
+-0.0308053
+</td>
+<td style="text-align:right;">
+-0.1902627
+</td>
+<td style="text-align:right;">
+-0.0652582
+</td>
+<td style="text-align:right;">
+-0.0390315
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+0.1891845
+</td>
+<td style="text-align:right;">
+0.0672068
+</td>
+<td style="text-align:right;">
+-0.1457485
+</td>
+<td style="text-align:right;">
+0.0899458
+</td>
+<td style="text-align:right;">
+0.0498034
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+track_negative
+</td>
+<td style="text-align:right;">
+0.2296380
+</td>
+<td style="text-align:right;">
+0.2395671
+</td>
+<td style="text-align:right;">
+-0.0893997
+</td>
+<td style="text-align:right;">
+0.1631755
+</td>
+<td style="text-align:right;">
+-0.0398966
+</td>
+<td style="text-align:right;">
+0.1891845
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+0.3237533
+</td>
+<td style="text-align:right;">
+-0.7907775
+</td>
+<td style="text-align:right;">
+0.5537982
+</td>
+<td style="text-align:right;">
+-0.1473000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+track_positive
+</td>
+<td style="text-align:right;">
+0.2496029
+</td>
+<td style="text-align:right;">
+-0.0083334
+</td>
+<td style="text-align:right;">
+-0.0825593
+</td>
+<td style="text-align:right;">
+0.0987506
+</td>
+<td style="text-align:right;">
+-0.1099727
+</td>
+<td style="text-align:right;">
+0.0672068
+</td>
+<td style="text-align:right;">
+0.3237533
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+0.3231199
+</td>
+<td style="text-align:right;">
+0.5136772
+</td>
+<td style="text-align:right;">
+0.0529853
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+track_sentiment
+</td>
+<td style="text-align:right;">
+-0.0682106
+</td>
+<td style="text-align:right;">
+-0.2450132
+</td>
+<td style="text-align:right;">
+0.0360087
+</td>
+<td style="text-align:right;">
+-0.0993264
+</td>
+<td style="text-align:right;">
+-0.0312408
+</td>
+<td style="text-align:right;">
+-0.1457485
+</td>
+<td style="text-align:right;">
+-0.7907775
+</td>
+<td style="text-align:right;">
+0.3231199
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.2216029
+</td>
+<td style="text-align:right;">
+0.1816124
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+unique_nontitle_words_in_track
+</td>
+<td style="text-align:right;">
+0.3385649
+</td>
+<td style="text-align:right;">
+0.2436290
+</td>
+<td style="text-align:right;">
+-0.0244873
+</td>
+<td style="text-align:right;">
+0.2734671
+</td>
+<td style="text-align:right;">
+-0.0658305
+</td>
+<td style="text-align:right;">
+0.0899458
+</td>
+<td style="text-align:right;">
+0.5537982
+</td>
+<td style="text-align:right;">
+0.5136772
+</td>
+<td style="text-align:right;">
+-0.2216029
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+-0.0445181
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+track_average_scrabble_score
+</td>
+<td style="text-align:right;">
+0.0657059
+</td>
+<td style="text-align:right;">
+-0.0927759
+</td>
+<td style="text-align:right;">
+-0.0734604
+</td>
+<td style="text-align:right;">
+-0.0032271
+</td>
+<td style="text-align:right;">
+0.0478014
+</td>
+<td style="text-align:right;">
+0.0498034
+</td>
+<td style="text-align:right;">
+-0.1473000
+</td>
+<td style="text-align:right;">
+0.0529853
+</td>
+<td style="text-align:right;">
+0.1816124
+</td>
+<td style="text-align:right;">
+-0.0445181
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+</tr>
+</tbody>
+</table>
+<p>I noticed that many of the more popular tracks came from the albums “Lover” (2019) and “reputation,” (2017) which was interesting to me because they represent a significant departure from her previous and current work in terms of genre, overall sound, etc. I also found it interesting that “Lover” (the song) has lower <code>danceability</code> and higher <code>acousticness</code> metrics than the rest of the top 10 most popular tracks, but it’s still the second most popular song. Of the two potential associations I mentioned in my introduction, I see more of a potential association between <code>duration_ms</code> and <code>unique_nontitle_words_in_track</code> than between <code>valence</code> and <code>track_sentiment</code>. However, <code>duration_ms</code> and <code>valence</code> may show some association that I had not previously considered.</p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+</div>
+<div id="visualizing" class="section level3">
+<h3>4. Visualizing</h3>
+<p>I used the correlations between numeric variables to generate a heatmap. From this, I saw a strong negative correlation between <code>track_sentiment</code> and <code>track_negative</code>; this was not very surprising to me, since I calculated <code>track_sentiment</code> by subtracting <code>track_negative</code> from <code>track_positive</code>. Similarly, <code>unique_nontitle_words_in_track</code> appears to correlate positively with <code>track_positive</code> and <code>track_negative</code>, both of which were calculated using a list of unique words in a song. I also noticed a potential negative correlation between <code>valence</code> and <code>duration_ms</code>, suggesting that longer songs may tend to sound less upbeat.</p>
+<pre class="r"><code>library(ggridges)
+
+tidycor &lt;- s4 %&gt;% select_if(is.numeric) %&gt;% cor(use = &quot;pair&quot;) %&gt;% 
+    as.data.frame %&gt;% rownames_to_column(&quot;var1&quot;) %&gt;% pivot_longer(-1, 
+    names_to = &quot;var2&quot;, values_to = &quot;correlation&quot;)
+
+tidycor %&gt;% ggplot(aes(var1, var2, fill = correlation)) + geom_tile() + 
+    scale_fill_gradient2(low = &quot;red&quot;, mid = &quot;white&quot;, high = &quot;blue&quot;) + 
+    geom_text(aes(label = round(correlation, 2)), color = &quot;black&quot;, 
+        size = 2) + theme(axis.text.x = element_text(angle = 90, 
+    hjust = 1)) + coord_fixed() + labs(title = &quot;Correlations between \n numeric variables&quot;)</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-11-1.png" width="672" style="display: block; margin: auto;" /></p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+<p>I wanted to see how the audio metrics <code>danceability</code>, <code>acousticness</code>, and <code>valence</code> changed over the course of Taylor Swift’s musical career, from her self-titled album in 2006 through her newest albums (“folklore” and “evermore,” 2020). I was a bit surprised to see that “folklore” and “evermore” score notably higher on the <code>acousticness</code> metric than the rest of Swift’s albums, even her self-titled album…which was very, very country. By contrast, “Lover” and “reputation”, her most mainstream-pop albums, appear to have the lowest <code>acousticness</code>. Within these two groups of albums (her 2020 releases and her mainstream-pop albums), Swift’s tracks appear to share a lot of similarity in audio characteristics (though “Lover” is apparently more danceable than “reputation”). Notable as well are the similarities between her first three albums, which were either country or very country-skewed “country-pop”.</p>
+<pre class="r"><code>s4$album_name &lt;- factor(s4$album_name, levels = c(&quot;Taylor Swift&quot;, 
+    &quot;Fearless Platinum Edition&quot;, &quot;Speak Now (Deluxe Edition)&quot;, 
+    &quot;Red (Deluxe Edition)&quot;, &quot;1989 (Deluxe Edition)&quot;, &quot;reputation&quot;, 
+    &quot;Lover&quot;, &quot;folklore (deluxe version)&quot;, &quot;evermore (deluxe version)&quot;))
+
+s4 %&gt;% ggplot(aes(y = album_name)) + geom_density_ridges(aes(x = danceability, 
+    color = &quot;Danceability&quot;), alpha = 0.3, scale = 0.9) + geom_density_ridges(aes(x = acousticness, 
+    color = &quot;Acousticness&quot;), alpha = 0.3, scale = 0.9) + geom_density_ridges(aes(x = valence, 
+    color = &quot;Valence&quot;), alpha = 0.3, scale = 0.9) + labs(title = &quot;Audio Characteristics of Each Taylor Swift Album&quot;, 
+    x = &quot;Audio Metric&quot;, y = &quot;Album&quot;) + scale_color_manual(name = &quot;&quot;, 
+    values = c(Acousticness = &quot;blue&quot;, Danceability = &quot;black&quot;, 
+        Valence = &quot;red&quot;))</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-12-1.png" width="672" style="display: block; margin: auto;" /></p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+<p>I saw in the correlation heatmap above that there’s some correlation between <code>valence</code> and <code>duration_ms</code>, so I decided to visualize that along with two other audio metrics. Adding <code>geom_smooth</code> layers helped me see how much variation there was, especially in <code>acousticness</code> vs. <code>duration_ms</code>. A track’s <code>valence</code> seems to have the greatest negative correlation with its <code>duration_ms</code>, while <code>danceability</code> has a slight negative correlation and <code>acousticness</code> has a weak positive correlation that becomes less clear as <code>duration_ms</code> increases past where most of the tracks are.</p>
+<pre class="r"><code>s4 %&gt;% ggplot(aes(x = duration_ms)) +
+  geom_point(aes(y = acousticness, color = &quot;Acousticness&quot;),
+             stat = &quot;summary&quot;, #stat = &quot;summary&quot; defaults to mean
+             shape = 1, alpha = 0.9, size = 1) +
+  geom_point(aes(y = danceability, color = &quot;Danceability&quot;),
+             shape = 2, alpha = 0.9, size = 1) +
+  geom_point(aes(y = valence, color = &quot;Valence&quot;),
+             shape = 5, alpha = 0.9, size = 1) +
+  geom_smooth(aes(y = acousticness, color = &quot;Acousticness&quot;), method = &quot;lm&quot;) +
+  geom_smooth(aes(y = danceability, color = &quot;Danceability&quot;), method = &quot;lm&quot;) +
+  geom_smooth(aes(y = valence, color = &quot;Valence&quot;), method = &quot;lm&quot;) +
+  labs(title = &quot;Track Duration vs. Audio Characteristics&quot;, x = &quot;Track Duration (ms)&quot;, y = &quot;Audio Metric&quot;) +
+  scale_color_manual(name = &quot;&quot;, values = c(&quot;Acousticness&quot; = &quot;blue&quot;, &quot;Danceability&quot; = &quot;black&quot;, &quot;Valence&quot; = &quot;red&quot;)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-13-1.png" width="672" style="display: block; margin: auto;" /></p>
+<P style="page-break-before: always">
+<div style="page-break-after: always;"></div>
+</div>
+<div id="dimensionality-reduction" class="section level3">
+<h3>5. Dimensionality Reduction</h3>
+<p>To prepare <code>s4</code> for PCA, I selected and scaled the numeric variables before running <code>princomp</code> and performing the appropriate subsequent actions. I picked the first six components because they accounted for &gt; 80% of the total variation. (Most of these PCs also followed Kaiser’s rule, i.e., were &gt; 1.)</p>
+<pre class="r"><code># Prepare the data
+s4_nums &lt;- s4 %&gt;% select_if(is.numeric) %&gt;% scale
+rownames(s4_nums) &lt;- s4$track_title
+
+# Perform PCA by running `princomp`, etc.
+s4_pca &lt;- princomp(s4_nums)
+names(s4_pca)</code></pre>
+<pre><code>## [1] &quot;sdev&quot;     &quot;loadings&quot; &quot;center&quot;   &quot;scale&quot;    &quot;n.obs&quot;    &quot;scores&quot;   &quot;call&quot;</code></pre>
+<pre class="r"><code>eigval &lt;- s4_pca$sdev^2
+varprop = round(eigval/sum(eigval), 2)
+summary(s4_pca, loadings = T)</code></pre>
+<pre><code>## Importance of components:
+##                          Comp.1    Comp.2    Comp.3    Comp.4     Comp.5
+## Standard deviation     1.610626 1.3843328 1.1730821 1.0793969 0.99861179
+## Proportion of Variance 0.237433 0.1754013 0.1259530 0.1066385 0.09127358
+## Cumulative Proportion  0.237433 0.4128343 0.5387873 0.6454258 0.73669934
+##                            Comp.6     Comp.7     Comp.8     Comp.9    Comp.10
+## Standard deviation     0.93859473 0.84145959 0.75640542 0.65195514 0.53900710
+## Proportion of Variance 0.08063209 0.06480645 0.05236739 0.03890336 0.02659137
+## Cumulative Proportion  0.81733143 0.88213788 0.93450527 0.97340863 1.00000000
+##                        Comp.11
+## Standard deviation           0
+## Proportion of Variance       0
+## Cumulative Proportion        1
+## 
+## Loadings:
+##                                Comp.1 Comp.2 Comp.3 Comp.4 Comp.5 Comp.6 Comp.7
+## duration_ms                     0.324  0.403                0.304  0.328  0.165
+## popularity                      0.152 -0.396 -0.174 -0.333 -0.356 -0.239  0.548
+## danceability                   -0.202 -0.379 -0.384         0.252  0.166  0.201
+## acousticness                    0.258               -0.544 -0.414        -0.541
+## valence                        -0.216 -0.397 -0.269  0.315         0.200 -0.519
+## tempo                           0.148         0.218  0.595 -0.341 -0.514       
+## track_negative                  0.522 -0.272         0.184         0.136       
+## track_positive                  0.281  0.250 -0.588  0.175        -0.215       
+## track_sentiment                -0.340  0.434 -0.428               -0.275       
+##                                Comp.8 Comp.9 Comp.10 Comp.11
+## duration_ms                     0.282  0.422  0.488         
+## popularity                     -0.137  0.285  0.308         
+## danceability                    0.667 -0.298                
+## acousticness                    0.357 -0.138  0.145         
+## valence                        -0.150  0.444  0.299         
+## tempo                           0.433                       
+## track_negative                 -0.197 -0.344  0.136   0.643 
+## track_positive                 -0.253 -0.341  0.269  -0.416 
+## track_sentiment                        0.124          0.643 
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 2 rows ]</code></pre>
+<pre class="r"><code># View eigen values and select PCs 1-6 (&gt; 80% of variance)
+eigval[1:11]</code></pre>
+<pre><code>##    Comp.1    Comp.2    Comp.3    Comp.4    Comp.5    Comp.6    Comp.7    Comp.8 
+## 2.5941158 1.9163773 1.3761217 1.1650977 0.9972255 0.8809601 0.7080542 0.5721492 
+##    Comp.9   Comp.10   Comp.11 
+## 0.4250455 0.2905287 0.0000000</code></pre>
+<pre class="r"><code>s4_scores &lt;- data.frame(track_title = s4$track_title, PC1 = s4_pca$scores[, 
+    1], PC2 = s4_pca$scores[, 2], PC3 = s4_pca$scores[, 3], PC4 = s4_pca$scores[, 
+    4], PC5 = s4_pca$scores[, 5], PC6 = s4_pca$scores[, 6])</code></pre>
+<p>I then made a biplot using loadings and scores from PC1 and PC2. From here, I made two more plots that broke down the components of the biplot in a more readable way.</p>
+<pre class="r"><code># Make a biplot (loadings and PC scores)
+library(factoextra)
+fviz_pca_biplot(s4_pca, col.ind = &quot;gray&quot;) + labs(x = &quot;PC1&quot;, y = &quot;PC2&quot;)</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-15-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Plot PC scores only, colored by album
+s4_rejoined &lt;- s4_scores %&gt;% left_join(s4)
+ggplot(s4_rejoined, aes(PC1, PC2, color = album_name)) + geom_point() + 
+    labs(title = &quot;Track Scores Along PC1 and PC2&quot;)</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-15-2.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Plot loadings
+s4_pca$loadings[1:4, 1:2] %&gt;% as.data.frame %&gt;% rownames_to_column %&gt;% 
+    ggplot() + geom_hline(aes(yintercept = 0), lty = 2) + geom_vline(aes(xintercept = 0), 
+    lty = 2) + ylab(&quot;PC2&quot;) + xlab(&quot;PC1&quot;) + geom_segment(aes(x = 0, 
+    y = 0, xend = Comp.1, yend = Comp.2), arrow = arrow(), col = &quot;red&quot;) + 
+    geom_label(aes(x = Comp.1 * 0.9, y = Comp.2 + 0.1, label = rowname)) + 
+    labs(title = &quot;Loadings for PC1 and PC2&quot;)</code></pre>
+<p><img src="../../project/project1_files/figure-html/unnamed-chunk-15-3.png" width="672" style="display: block; margin: auto;" /></p>
+<p>We can see from these plots that principal components 1 and 2, which (as calculated earlier) account for just over 40% of total variance, do not appear to separate songs by album. This lack of separation reflects the variety of genres and moods included in this dataset, which spans almost 150 songs over Taylor Swift’s nine studio albums (released from 2006 to 2020). From the loadings we can see that PC1 and PC2 were largely impacted by the variables <code>duration_ms</code>, <code>danceability</code>, <code>acousticness</code>, and <code>popularity</code>. Acute angles between loadings indicate positive correlations, while obtuse angles indicate negative correlations.</p>
+<p>Prior to running these analyses, I was not expecting to find any strong clusters or axes–as I mentioned in the last paragraph, Taylor Swift’s songs vary greatly both in audio characteristics and in lyrics. I was mostly curious about the different factors that might make some songs more similar to others, which I’ve just begun to explore using the methods above.</p>
+<p><em>Note: Some of the methods carried out as part of this project build off of things done in <a href="https://medium.com/@simranvatsa5/taylor-f656e2a09cc3">“tayloR,”</a> a super cool analysis posted online by Simran Vatsa in 2018. I found out about this last week from the Github page for the <code>spotifyr</code> package, where I went after independently wondering, “hey, I really like Taylor Swift, and she has a ton of songs across several albums and genres…is there some way I can use her music in my SDS 348 project?” I do not own any of the audio or lyric data used in this analysis.</em></p>
+<hr />
+<pre><code>## R version 3.6.1 (2019-07-05)
+## Platform: x86_64-pc-linux-gnu (64-bit)
+## Running under: Ubuntu 18.04.5 LTS
+## 
+## Matrix products: default
+## BLAS:   /stor/system/opt/R/R-3.6.1/lib/R/lib/libRblas.so
+## LAPACK: /stor/system/opt/R/R-3.6.1/lib/R/lib/libRlapack.so
+## 
+## locale:
+##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+##  [1] factoextra_1.0.7 ggridges_0.5.2   kableExtra_1.3.4 knitr_1.30      
+##  [5] tidytext_0.3.0   genius_2.2.2     forcats_0.5.0    stringr_1.4.0   
+##  [9] dplyr_1.0.5      purrr_0.3.4      readr_1.4.0      tidyr_1.1.3     
+## [13] tibble_3.1.0     ggplot2_3.3.3    tidyverse_1.3.0  spotifyr_2.1.1  
+## 
+## loaded via a namespace (and not attached):
+##   [1] colorspace_2.0-0  ggsignif_0.6.0    selectr_0.4-2     rio_0.5.16       
+##   [5] ellipsis_0.3.1    rprojroot_2.0.2   snakecase_0.11.0  fs_1.5.0         
+##   [9] rstudioapi_0.13   ggpubr_0.4.0      farver_2.0.3      remotes_2.2.0    
+##  [13] SnowballC_0.7.0   ggrepel_0.9.0     fansi_0.4.2       lubridate_1.7.10 
+##  [17] xml2_1.3.2        splines_3.6.1     pkgload_1.1.0     jsonlite_1.7.2   
+##  [21] broom_0.7.3       dbplyr_2.0.0      compiler_3.6.1    httr_1.4.2       
+##  [25] backports_1.2.1   assertthat_0.2.1  Matrix_1.3-2      ScrabbleScore_1.0
+##  [29] cli_2.3.1         formatR_1.7       htmltools_0.5.0   prettyunits_1.1.1
+##  [33] tools_3.6.1       gtable_0.3.0      glue_1.4.2        reshape2_1.4.4   
+##  [37] Rcpp_1.0.6        carData_3.0-4     cellranger_1.1.0  vctrs_0.3.6      
+##  [41] debugme_1.1.0     svglite_1.2.3.2   nlme_3.1-151      blogdown_0.20    
+##  [45] xfun_0.20         ps_1.5.0          openxlsx_4.2.3    testthat_3.0.1   
+##  [49] rvest_1.0.0       lifecycle_1.0.0   devtools_2.3.2    rstatix_0.6.0    
+##  [53] scales_1.1.1      hms_1.0.0         yaml_2.2.1        curl_4.3         
+##  [57] memoise_1.1.0     gdtools_0.2.3     stringi_1.5.3     highr_0.8        
+##  [61] tokenizers_0.2.1  desc_1.2.0        zip_2.1.1         pkgbuild_1.2.0   
+##  [65] rlang_0.4.10      pkgconfig_2.0.3   systemfonts_0.3.2 evaluate_0.14    
+##  [69] lattice_0.20-41   labeling_0.4.2    processx_3.4.5    tidyselect_1.1.0 
+##  [73] plyr_1.8.6        magrittr_2.0.1    bookdown_0.21     R6_2.5.0         
+##  [77] generics_0.1.0    DBI_1.1.0         foreign_0.8-71    pillar_1.5.1     
+##  [81] haven_2.3.1       withr_2.3.0       mgcv_1.8-33       abind_1.4-5      
+##  [85] car_3.0-10        janeaustenr_0.1.5 janitor_2.1.0     modelr_0.1.8     
+##  [89] crayon_1.4.1      utf8_1.2.1        rmarkdown_2.6     usethis_2.0.0    
+##  [93] grid_3.6.1        readxl_1.3.1      data.table_1.13.6 callr_3.5.1      
+##  [97] reprex_0.3.0      digest_0.6.27     webshot_0.5.2     munsell_0.5.0    
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 2 entries ]</code></pre>
+<pre><code>## [1] &quot;2021-05-09 18:23:25 CDT&quot;</code></pre>
+<pre><code>##                                        sysname 
+##                                        &quot;Linux&quot; 
+##                                        release 
+##                           &quot;4.15.0-142-generic&quot; 
+##                                        version 
+## &quot;#146-Ubuntu SMP Tue Apr 13 01:11:19 UTC 2021&quot; 
+##                                       nodename 
+##                   &quot;educcomp04.ccbb.utexas.edu&quot; 
+##                                        machine 
+##                                       &quot;x86_64&quot; 
+##                                          login 
+##                                      &quot;unknown&quot; 
+##                                           user 
+##                                       &quot;icl283&quot; 
+##                                 effective_user 
+##                                       &quot;icl283&quot;</code></pre>
+</div>
 </div>
 
             

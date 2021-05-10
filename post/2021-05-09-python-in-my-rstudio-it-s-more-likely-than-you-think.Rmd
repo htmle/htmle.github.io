@@ -1,0 +1,61 @@
+---
+title: Python? In MY RStudio? (It's More Likely Than You Think)
+author: ''
+date: '2021-05-09'
+slug: python-in-my-rstudio-it-s-more-likely-than-you-think
+categories: []
+tags: []
+description: ''
+---
+ <center>
+ 
+![(Picture of Samuel L. Jackson in a meme that says "Snakes? On *my* plane? It's more likely than you think." This meme format parodies an old ad for "Net Nanny" website blocking software.)](/post/2021-05-09-python-in-my-rstudio-it-s-more-likely-than-you-think_files/Snakesonmyplane.jpg)
+
+</center>
+
+---
+
+Have you ever thought to yourself, "sure, R is great, but what I *really* need is a way to make my life more complicated by adding Python into the mix"? Sure you have! Luckily for you, there's an R package that lets you run Python right in RStudio and even have the two programming languages "talk" to each other. Enter: `reticulate`!
+
+First, let's load up `reticulate` by creating an R code block and running the `library` function. We'll then create an object called `species` and assign it the common name of the reticulated python, which is the world's longest snake and also the namesake of this package!
+
+```{r}
+# R
+
+library(reticulate)
+
+species <- "Reticulated python"
+```
+
+Next, let's make a Python code block where we define `species` as the reticulated python's scientific name.
+
+```{python}
+# Python
+
+species = "Malayopython reticulatus"
+```
+
+Now for the fun (?) part: combining R and Python in a single output! In an R code block, we can use `py$` to pull up things defined in Python.
+
+```{r}
+# R
+
+cat(c(species, py$species))
+```
+
+Wondering if this works the other way around? It sure does! If we want to access something defined in R but we're in a Python code block, we can use `r.` in front of the object's name.
+
+```{python}
+# Python
+
+print(species, r.species)
+```
+
+There you have it--a super simple demo showing you how to use Python and R together in RStudio. Hope this helped (or at least taught you a cool fact about reticulated pythons)!
+
+---
+<center>
+
+![(From @kareem_carr on Twitter: "survival of the fittest," or R and Python as Godzilla and King Kong being chased away by Microsoft Excel.)](/post/2021-05-09-python-in-my-rstudio-it-s-more-likely-than-you-think_files/r_vs_python.jpeg)
+
+</center>

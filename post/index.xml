@@ -8,15 +8,13 @@
     <language>en-US</language>
     <lastBuildDate>Sun, 09 May 2021 00:00:00 +0000</lastBuildDate><atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>New Post</title>
-      <link>/post/2021/05/09/new-post/</link>
+      <title>Python? In MY RStudio? (It&#39;s More Likely Than You Think)</title>
+      <link>/post/2021/05/09/python-in-my-rstudio-it-s-more-likely-than-you-think/</link>
       <pubDate>Sun, 09 May 2021 00:00:00 +0000</pubDate>
       
-      <guid>/post/2021/05/09/new-post/</guid>
-      <description> A bunch of nonsense
-Link to project 1
-Link to google
-print(&amp;quot;Hello world!&amp;quot;) ## [1] &amp;quot;Hello world!&amp;quot; print(&amp;quot;Hello world!&amp;quot;) ## Hello world! </description>
+      <guid>/post/2021/05/09/python-in-my-rstudio-it-s-more-likely-than-you-think/</guid>
+      <description>(Picture of Samuel L. Jackson in a meme that says “Snakes? On my plane? It’s more likely than you think.” This meme format parodies an old ad for “Net Nanny” website blocking software.)
+  Have you ever thought to yourself, “sure, R is great, but what I really need is a way to make my life more complicated by adding Python into the mix”? Sure you have! Luckily for you, there’s an R package that lets you run Python right in RStudio and even have the two programming languages “talk” to each other.</description>
     </item>
     
   </channel>

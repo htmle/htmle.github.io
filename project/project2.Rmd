@@ -1,8 +1,383 @@
 ---
-title: "Project 2"
-author: "Me"
-date: "2020-12-01"
-output: html_document
+title: 'Project 2: Modeling, Testing, and Predicting'
+author: "SDS348"
+date: "YYYY-MM-DD"
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
 ---
 
-## Test Project 2
+```{r setup, include=FALSE}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+library(tidyverse)
+library(kableExtra)
+
+class_diag <- function(probs,truth){ 
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV 
+  if(is.character(truth)==TRUE) truth<-as.factor(truth) 
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1 
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),factor(truth, levels=c(0,1))) 
+  acc=sum(diag(tab))/sum(tab) 
+  sens=tab[2,2]/colSums(tab)[2] 
+  spec=tab[1,1]/colSums(tab)[1] 
+  ppv=tab[2,2]/rowSums(tab)[2] 
+  
+#CALCULATE EXACT AUC 
+  ord<-order(probs, decreasing=TRUE) 
+  probs <- probs[ord]; truth <- truth[ord] 
+  TPR=cumsum(truth)/max(1,sum(truth))  
+  FPR=cumsum(!truth)/max(1,sum(!truth)) 
+  dup <-c(probs[-1]>=probs[-length(probs)], FALSE) 
+  TPR <-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1) 
+  n <- length(TPR) 
+  auc <- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n])) 
+  data.frame(acc,sens,spec,ppv,auc) 
+}
+```
+
+## Eli Le
+
+### 0. Introduction
+
+The fifth main game in Nintendo's *Animal Crossing* series, *Animal Crossing: New Horizons* is a life simulation video game published on March 20, 2020 for the Nintendo Switch. Partially because it was released in the first few weeks of the COVID-19 pandemic and partially because it's just super cute, the game became wildly popular in 2020 as people looked for a way to connect with friends and escape everything going on in the real world. As in previous *Animal Crossing* games, the player character in *New Horizons* "is a human who lives in a village inhabited by various anthropomorphic animals, carrying out [different] activities such as fishing, bug catching, and fossil hunting" [(Wikipedia).](https://en.wikipedia.org/wiki/Animal_Crossing) Each villager has a `personality` type (linked to `gender`), a favorite `song`, and a `catchphrase`, along with other descriptors such as `species` and `birthday`.
+
+On May 5, 2020, the R for Data Science [TidyTuesday event](https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-05-05) used data compiled from online *Animal Crossing: New Horizons* databases. The `villagers` dataset contained information on 391 villagers available in *New Horizons*, including 8 new villagers such as Audie (a peppy wolf), Raymond (a smug cat who is one of the most popular villagers and has a slight cult following), and Sherb (a lazy goat).
+
+Because the original `villagers` dataset did not include `song` data for these new villagers (or a few older ones), I looked up these villagers on [Nookipedia](https://nookipedia.com/wiki/Main_Page) and added their songs manually. I then separated `birthday` into `birth_month` and `birth_date`, created a binary variable for whether or not a villager is `male`, and added full `birthday`s back in MM-DD format. Following this, I decided to add counts (`_n`) of how many villagers have each `species`, `personality` type, and `song`. Finally, I selected my variables of interest and saved them in an order that made more sense to me.
+
+```{R}
+# Import `villagers` dataset
+villagers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-05/villagers.csv')
+
+# Add missing songs
+villagers$song[villagers$id == "audie"] <- "K.K. Island"
+villagers$song[villagers$id == "cyd"] <- "K.K. Metal"
+villagers$song[villagers$id == "dom"] <- "K.K. Country"
+villagers$song[villagers$id == "judy"] <- "K.K. Lullaby"
+villagers$song[villagers$id == "louie"] <- "K.K. Etude"
+villagers$song[villagers$id == "megan"] <- "Forest Life"
+villagers$song[villagers$id == "paolo"] <- "K.K. March"
+villagers$song[villagers$id == "raymond"] <- "K.K. Cruisin'"
+villagers$song[villagers$id == "reneigh"] <- "K.K. Synth"
+villagers$song[villagers$id == "sherb"] <- "Hypno K.K."
+villagers$song[villagers$id == "spike"] <- "Surfin' K.K."
+
+# Create columns for `birth_month`, `birth_date`, and `male`
+villagers2 <- villagers %>%
+  separate(col = "birthday", into = c("birth_month", "birth_date"), sep = "-") %>%
+  mutate(male = ifelse(gender == "male", 1, 0))
+
+# Add birthday values back in MM-DD format
+villagers2$birthday <- villagers$birthday
+
+# Add counts of how many villagers have a `species`, `personality` type, or `song`
+species <- villagers2 %>%
+  count(species, sort = TRUE) %>%
+  rename(species_n = n)
+personality <- villagers2 %>%
+  count(personality, sort = TRUE) %>%
+  rename(personality_n = n)
+song <- villagers2 %>%
+  count(song, sort = TRUE) %>%
+  rename(song_n = n)
+villagers2 <- villagers2 %>%
+  left_join(species, by = "species")
+villagers2 <- villagers2 %>%
+  left_join(personality, by = "personality")
+villagers2 <- villagers2 %>%
+  left_join(song, by = "song")
+
+# Select columns of interest
+villagers2 <- villagers2 %>%
+  select(id, name, gender, male, species, species_n, birthday, birth_month, birth_date, personality, personality_n, song, song_n, catchphrase = phrase)
+
+# Display first few rows of dataset
+head(villagers2) %>%
+  knitr::kable() %>%
+  kable_classic()
+```
+
+### 1. MANOVA
+
+I performed a MANOVA to determine whether `species_n` and `song_n` show a mean difference across levels of `personality`. From this, I saw that there appears to be some difference in these variables across `personalities` (p < 0.05). I then performed univariate ANOVAs and found that both `species_n` and `song_n` show mean differences across `personality` groups when considered separately. Prior to correction, significant differences in `species_n` across `personalities` were observed in pairings cranky-lazy, cranky-peppy, jock-peppy, lazy-peppy, normal-peppy, peppy-smug, peppy-snooty, and peppy-uchi. I also observed significant differences in `song_n` between the pairings cranky-normal, normal-smug, normal-uchi, and peppy-smug. Counting the 1 MANOVA, 2 ANOVAs, and 56 pairwise t-tests, I performed a total of 59 tests; the probability that I made at least one Type I error during this process was around 0.952. A Bonferroni correction adjusted the significance level to 0.000847. Following correction, only the difference in `song_n` between cranky and peppy `personalities` remained significant. This means there is a significant difference in the mean number of other villagers who have a favorite song (`song_n`) between villagers whose personalities are cranky vs. peppy.
+
+A MANOVA assumes multivariate normality of DVs. To test this, I used the `mshapiro_test` in the `rstatix` package and found that most of the `personality` groups met this assumption, since I was not able to reject the null hypothesis (normality) for those groups. Another MANOVA assumption I looked at was homogeneity of within-group covariance matrices. I did this using Box's M test and (barely) failed to reject the null hypothesis, which means the data meet this assumption. Lastly, I looked at whether the DVs had a linear relationship, since that is another MANOVA assumption. I made a plot but did not see evidence of a strong relationship in any direction; as a result, I don't think the data meet this particular assumption.
+
+```{R}
+library(rstatix)
+
+man1 <- manova(cbind(species_n, song_n) ~ personality, data = villagers2)
+summary(man1)
+
+# univariate ANOVAs
+summary.aov(man1)
+
+# post-hoc t-tests
+pairwise.t.test(villagers2$species_n, villagers2$personality, p.adj = "none")
+pairwise.t.test(villagers2$song_n, villagers2$personality, p.adj = "none")
+
+1 - (0.95)^59 # probability of at least 1 Type I error
+0.05/59 # adjusted significance level
+
+# Test multivariate normality for each group (null: normality met)
+group <- villagers2$personality
+DVs <- villagers2 %>% select(species_n, song_n)
+sapply(split(DVs, group), mshapiro_test) %>%
+  knitr::kable() %>%
+  kable_classic() # p < 0.05, fail to reject null, not normal: jock, peppy, uchi (3/8)
+
+# Box's M test (null: homogeneity of vcov mats assumption met)
+box_m(DVs, group) # fail to reject null...barely (meets assumption)
+
+# Linear relationships among DVs?
+ggplot(data = DVs, aes(x = species_n, y = song_n)) +
+  geom_jitter(alpha = 0.3) +
+  labs(title = "Shared Song Count vs. Shared Species Count", x = "Shared Species Count (species_n)", y = "Shared Song Count (song_n)")
+```
+
+### 2. Randomization test
+
+I then performed a randomization test to determine whether there was a mean difference in `species_n` (the number of villagers of the same species as an individual) across `gender`. My null hypothesis (H0) was that there was no mean difference in `species_n` between female and male villagers; my alternative hypothesis (HA) was that there *was* a mean difference in `species_n` across these two `gender` groups. Using observed means difference cutoffs of -0.968 and 0.968, I randomized the data and calculated a p-value as appropriate. This gave me a p-value < 0.05 (albeit only slightly), so I rejected the null hypothesis. From this, we can see that there does appear to be a mean difference in `species_n` between female and male villagers...it's just not a very big difference.
+
+```{R}
+# observed difference in means
+villagers2 %>%
+  group_by(gender) %>%
+  summarize(means = mean(species_n)) %>%
+  summarize(`mean_diff` = diff(means))
+
+rand_dist <- vector() # create vector to hold diffs under null hypothesis
+
+for(i in 1:5000) {
+new <- data.frame(species_n = sample(villagers2$species_n), gender = villagers2$gender) # scramble columns
+rand_dist[i] <- mean(new[new$gender == "female",]$species_n) -
+  mean(new[new$gender == "male",]$species_n)} # compute mean difference (base R)
+
+# PLOT
+ggplot() +
+  geom_histogram(aes(rand_dist)) +
+  geom_vline(xintercept = c(-0.968, 0.968)) +
+  labs(title = "Histogram of Means Difference Random Distribution")
+
+# p-value for permutation test
+mean(rand_dist < -0.968 | rand_dist > 0.968) # p < 0.05 (barely), reject null
+```
+
+### 3. Linear regression model
+
+Next, I built a linear regression model predicting `personality_n_c` from `species_n_c` and `song_n_c` (including interaction). From the coefficient estimates, we can see that the slope for `species_n_c` on `personality_n_c` while holding `song_n_c` constant is -0.0415; the slope for `song_n_c` on `personality_n_c` while holding `species_n_c` constant is 0.6582; and the slope from the interaction of `species_n_c` and `song_n_c` is 0.0097. This model accounts for about 0.017 (1.7%) of the variation in outcome. This is due in part to some failed assumptions, including normality and homoskedasticity of residuals. The data also did not meet the assumption of linearity when considered all together, although I did see that the relationships between `species_n_c` and `song_n_c` were flat lines within each `personality` group; in the plots below I used `geom_jitter()` and adjusted transparency to make the individual points easier to distinguish.
+
+I then recomputed results using robust standard errors. A Breusch-Pagan test verified that the residuals showed heteroskedasticity. Following correction for violations of homoskedasticity, the SEs (0.0937, 0.2492, and 0.0468) showed a slight decrease from those calculated previously (0.1048, 0.2570, and 0.0576). We can see that `song_n_c`, which previously had a p-value of 0.0108, now has a p-value of 0.0086; overall, the significance status (yes/no) of the variables did not appear to change after incorporation of robust standard errors.
+
+```{R}
+# mean-center numeric variables
+villagers2$species_n_c <- villagers2$species_n - mean(villagers2$species_n)
+villagers2$personality_n_c <- villagers2$personality_n - mean(villagers2$personality_n)
+villagers2$song_n_c <- villagers2$song_n - mean(villagers2$song_n)
+
+# predict `personality_n_c` from `species_n_c` and `song_n_c` (w/ interaction)
+fit <- lm(personality_n_c ~ species_n_c * song_n_c, data = villagers2)
+summary(fit)
+
+# plot
+library(interactions)
+interact_plot(fit, pred = song_n_c, modx = species_n_c)
+
+# proportion of outcome
+summary(fit)$r.sq
+
+# check assumptions
+# linearity
+villagers2 %>%
+  ggplot(aes(x = species_n_c, y = personality_n_c)) +
+  geom_jitter(aes(color = personality), alpha = 0.3) +
+  labs(title = "Shared Personality Count vs. Shared Species Count (Both Centered)")
+villagers2 %>%
+  ggplot(aes(x = song_n_c, y = personality_n_c)) +
+  geom_jitter(aes(color = personality), alpha = 0.3) +
+  labs(title = "Shared Personality Count vs. Shared Song Count (Both Centered)")
+# normality
+resids1 <- lm(personality_n_c ~ species_n_c, data = villagers2)$residuals
+ggplot() +
+  geom_histogram(aes(resids1), bins = 10)
+resids2 <- lm(personality_n_c ~ song_n_c, data = villagers2)$residuals
+ggplot() +
+  geom_histogram(aes(resids2), bins = 10)
+# homoskedasticity
+resids <- fit$residuals
+fitvals <- fit$fitted.values
+ggplot() +
+  geom_point(aes(fitvals, resids), alpha = 0.3) +
+  geom_hline(yintercept = 0, color = 'red')
+
+# robust standard errors
+library(sandwich)
+library(lmtest)
+bptest(fit) #reject H0, conclude heteroskedasticity present
+coeftest(fit, vcov = vcovHC(fit)) # corrected
+```
+
+### 4. Linear regression model with bootstrapped standard errors
+
+I then added bootstrapped standard errors to my model by resampling. This produced SE values of 0.1048 (`species_n_c`), 0.2570 (`species_n_c`), and 0.0576 (interaction); this model also identified `song_n_c` as significant (p-value < 0.05). These SE values are very close to the originals and greater than the robust SEs. Overall, the significance status (yes/no) of the variables did not appear to change with the bootstrapped standard errors.
+
+```{R}
+# predict `personality_n_c` from `species_n_c` and `song_n_c` (w/ interaction)
+fit <- lm(personality_n_c ~ species_n_c * song_n_c, data = villagers2)
+summary(fit)
+
+# bootstrapping
+# repeat 5000 times
+samp_distn <- replicate(5000, {
+  boot_dat <- sample_frac(villagers2, replace = T) # take bootstrap sample of rows
+  fit <- lm(personality_n_c ~ species_n_c * song_n_c, data = boot_dat) # fit model on bootstrap sample
+  coef(fit) #save coefs
+  })
+## Estimated SEs
+samp_distn %>% t %>% as.data.frame %>% summarize_all(sd)
+```
+
+### 5. Logistic regression model
+
+I fitted a logistic regression model to predict the binary variable `male` (0 if no, 1 if yes) from `species_n` and `birth_month`. The coefficient estimates for this model, when used to calculate odds ratios, showed that villagers with `birth_months` 5-12 (May-December) were more likely to be male than villagers with `birth_month` 1 (January); on the flip side, villagers with `birth_months` 2-4 (February-April) were less likely to be male than those born in January. In particular, villagers born in October were 2.006 times as likely to be male than villagers born in January. The chances of a villager being male appeared to decrease slightly as `species_n` increased, with an exponentiated coefficient of 0.958. This model had an accuracy of 0.586, a sensitivity (TPR) of 0.681, a specificity (TNR) of 0.481, a precision (PPV) of 0.589, and an AUC of 0.612. I created an ROC plot, which also gave an AUC of 0.612; this indicates that the model performs poorly and is only slightly better than a classifier that predicts randomly (AUC = 0.5).
+
+```{R}
+library(lmtest)
+
+# predict `male` from `species_n` and `birth_month`
+fit2 <- glm(male ~ species_n + birth_month, data = villagers2, family = "binomial")
+coeftest(fit2)
+
+# exponentiate coefficients for interpretation
+exp(coef(fit2)) %>%
+  knitr::kable() %>%
+  kable_classic()
+
+# density plot
+villagers2$logit <- predict(fit2)
+
+villagers2 %>%
+  mutate(male = as.factor(male)) %>%
+  ggplot(aes(logit, fill = male)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 0) +
+  labs(title = "Density Plot Based On fit2 (Logistic Regression)")
+
+# confusion matrix
+villagers2.1 <- villagers2 %>% mutate(prob = predict(fit2, type = "response"), prediction = ifelse(prob > 0.5, 1, 0))
+classify <- villagers2.1 %>% transmute(prob, prediction, truth = male)
+table(prediction = classify$prediction, truth = classify$truth) %>% 
+    addmargins()
+
+probs_for_cd <- predict(fit2, type = "response")
+class_diag(probs_for_cd, villagers2$male)
+
+# ROC
+library(plotROC)
+ROCplot <- ggplot(classify) +
+  geom_roc(aes(d = truth, m = prob, n.cuts = 0)) +
+  labs(title = "ROC Plot Based On fit2 (Logistic Regression)")
+ROCplot
+
+# AUC
+calc_auc(ROCplot)
+```
+
+### 6. Another logistic regression
+
+Finally, I fitted a logistic regression model to predict the binary variable `male` (0 if no, 1 if yes) from all of my remaining variables. This model had an accuracy of 0.665, a sensitivity (TPR) of 0.691, a specificity (TNR) of 0.636, a precision (PPV) of 0.675, and an AUC of 0.711. These values decreased following 10-fold cross verification (CV); in particular, AUC decreased from 0.711 to 0.517.
+
+I used LASSO to pick out the variables `birth_date`, `personality_n`, and `song_n` because they produced the simplest model whose accuracy was near that of the best (by `lambda.1se`). A 10-fold CV performed using LASSO-selected variables yielded an AUC of 0.527, which was less than the AUC of the pre-LASSO model but (slightly) greater than that of the previous 10-fold CV. This AUC value was also worse than the one calculated for `fit2` in the previous section (0.612).
+
+```{R}
+# predict `male` from all the remaining variables (except `id` and `name`)
+villagers3 <- villagers2 %>%
+  select(-id, -name, -gender, -species, -birthday, -personality, -song, -catchphrase, -species_n_c, -personality_n_c, -song_n_c)
+
+fit3 <- glm(male ~ ., data = villagers3, family = "binomial")
+coeftest(fit3)
+exp(coef(fit3)) %>%
+  knitr::kable() %>%
+  kable_classic()
+
+# confusion matrix
+prob <- predict(fit3, type = "response") # get predictions for every villager in the dataset
+pred <- ifelse(prob > .5, 1, 0)
+table(prediction = pred, truth = villagers3$male) %>% addmargins
+
+# class_diag for fit3 only
+class_diag(prob, villagers3$male)
+
+# 10-fold CV
+set.seed(1234)
+k = 10 # choose number of folds
+data <- villagers3[sample(nrow(villagers3)),] # randomly order rows
+folds <- cut(seq(1:nrow(villagers3)), breaks = k,labels = F) #create folds
+diags <- NULL
+for(i in 1 : k) {
+  ## Create training and test sets
+  train <- data[folds != i,]
+  test <- data[folds == i,]
+  truth <- test$male # Truth labels for fold i
+  ## Train model on training set (all but fold i)
+  fit <- glm(male ~ ., data = train, family = "binomial")
+  ## Test model on test set (fold i)
+  probs <- predict(fit, newdata = test, type = "response")
+  ## Get diagnostics for fold i
+  diags <- rbind(diags, class_diag(probs,truth))
+}
+summarize_all(diags,mean)
+
+# LASSO
+library(glmnet)
+y <- as.matrix(villagers3$male)
+x <- model.matrix(male ~ -1+., data = villagers3) # the -1 drops intercept/ref group
+set.seed(1234)
+cv <- cv.glmnet(x, y, family = 'binomial')
+lasso <- glmnet(x, y, family = 'binomial',lambda=cv$lambda.1se)
+coef(lasso)
+
+# 10-fold CV using LASSO variables only
+set.seed(1234)
+k = 10 # choose number of folds
+data <- villagers3[sample(nrow(villagers3)),] # randomly order rows
+folds <- cut(seq(1:nrow(villagers3)), breaks = k,labels = F) #create folds
+diags <- NULL
+for(i in 1 : k) {
+  ## Create training and test sets
+  train <- data[folds != i,]
+  test <- data[folds == i,]
+  truth <- test$male # Truth labels for fold i
+  ## Train model on training set (all but fold i)
+  fit <- glm(male ~ birth_date + personality_n + song_n, data = train, family = "binomial")
+  ## Test model on test set (fold i)
+  probs <- predict(fit, newdata = test, type = "response")
+  ## Get diagnostics for fold i
+  diags <- rbind(diags, class_diag(probs,truth))
+}
+summarize_all(diags,mean)
+```
+
+---
+```{R, echo=F}
+sessionInfo()
+Sys.time()
+Sys.info()
+```
